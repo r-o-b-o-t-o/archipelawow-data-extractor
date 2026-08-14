@@ -15,7 +15,6 @@ public class ExtractedQuestData
     public uint Id { get; set; }
     public string Title { get; set; }
     public string DisplayTitle { get; set; }
-    public short Level { get; set; }
     public short MinLevel { get; set; }
     public short? RecommendedLevel { get; set; }
     public byte? SuggestedGroupSize { get; set; }
@@ -303,8 +302,9 @@ public class QuestExtractorService(
         {
             Id = q.Id,
             Title = q.LogTitle,
-            Level = q.QuestLevel,
             MinLevel = q.MinLevel,
+            // QuestLevel is the reward tier and carries -1 as its unset sentinel, so it is not written
+            // out; it only seeds the level a player can reasonably take the quest at.
             RecommendedLevel = q.QuestLevel > 0 ? (short)Math.Max(Math.Max(q.QuestLevel - 2, 1), q.MinLevel) : null,
             SuggestedGroupSize = q.SuggestedGroupNum > 1 ? q.SuggestedGroupNum : null,
             Races = GetAllowableRaces(q, questGiverFactions)?.Select(r => r.ID).ToList(),

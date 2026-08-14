@@ -117,7 +117,6 @@ substitute for the flag.
   "id": 176,
   "title": "Wanted:  \"Hogger\"",
   "displayTitle": "Wanted:  \"Hogger\"",
-  "level": 11,
   "minLevel": 5,
   "recommendedLevel": 9,
   "suggestedGroupSize": null,
