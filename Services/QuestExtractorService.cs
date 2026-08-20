@@ -598,6 +598,11 @@ public class QuestExtractorService(
 
     private bool FilterReputation(ExtractedQuestData q)
     {
+        if (q.QuestTemplate.RequiredFactionId1 != 0 || q.QuestTemplate.RequiredFactionId2 != 0)
+        {
+            return false;
+        }
+
         var addon = q.QuestTemplate.QuestTemplateAddon;
         return addon == null || (addon.RequiredMinRepFaction == 0 && addon.RequiredMaxRepFaction == 0);
     }
