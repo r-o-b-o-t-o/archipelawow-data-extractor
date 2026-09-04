@@ -1,14 +1,14 @@
 ﻿using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ArchipelaWoW.QuestExtractor.Dbc;
-using ArchipelaWoW.QuestExtractor.Entities;
-using ArchipelaWoW.QuestExtractor.Entities.World;
-using ArchipelaWoW.QuestExtractor.Services.Repositories;
+using ArchipelaWoW.DataExtractor.Dbc;
+using ArchipelaWoW.DataExtractor.Entities;
+using ArchipelaWoW.DataExtractor.Entities.World;
+using ArchipelaWoW.DataExtractor.Services.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace ArchipelaWoW.QuestExtractor.Services;
+namespace ArchipelaWoW.DataExtractor.Services;
 
 public class ExtractedQuestData
 {
@@ -228,11 +228,7 @@ public class QuestExtractorService(
 
     public async Task ExtractQuests()
     {
-        string outDir = Env.GetString("OUT_DIR") ?? throw new InvalidOperationException("\"OUT_DIR\" environment variable not set.");
-        if (!Directory.Exists(outDir))
-        {
-            Directory.CreateDirectory(outDir);
-        }
+        string outDir = OutputDirectory.Prepare();
 
         var questTemplates = await questsRepo.GetAllQuests();
         var questGiverFactions = await GetQuestGiverFactions(questTemplates);

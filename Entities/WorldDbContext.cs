@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using ArchipelaWoW.QuestExtractor.Entities.World;
+using ArchipelaWoW.DataExtractor.Entities.World;
 using Microsoft.EntityFrameworkCore;
 
-namespace ArchipelaWoW.QuestExtractor.Entities;
+namespace ArchipelaWoW.DataExtractor.Entities;
 
 public partial class WorldDbContext : DbContext
 {
@@ -13,6 +13,8 @@ public partial class WorldDbContext : DbContext
     }
 
     public virtual DbSet<Creature> Creatures { get; set; }
+
+    public virtual DbSet<CreatureDefaultTrainer> CreatureDefaultTrainers { get; set; }
 
     public virtual DbSet<CreatureQuestender> CreatureQuestenders { get; set; }
 
@@ -36,6 +38,8 @@ public partial class WorldDbContext : DbContext
 
     public virtual DbSet<ItemTemplate> ItemTemplates { get; set; }
 
+    public virtual DbSet<PlayercreateinfoSkill> PlayercreateinfoSkills { get; set; }
+
     public virtual DbSet<PoolQuest> PoolQuests { get; set; }
 
     public virtual DbSet<QuestPoi> QuestPois { get; set; }
@@ -43,6 +47,12 @@ public partial class WorldDbContext : DbContext
     public virtual DbSet<QuestTemplate> QuestTemplates { get; set; }
 
     public virtual DbSet<QuestTemplateAddon> QuestTemplateAddons { get; set; }
+
+    public virtual DbSet<SpellRank> SpellRanks { get; set; }
+
+    public virtual DbSet<Trainer> Trainers { get; set; }
+
+    public virtual DbSet<TrainerSpell> TrainerSpells { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -68,6 +78,13 @@ public partial class WorldDbContext : DbContext
             entity.Property(e => e.SpawnMask).HasDefaultValueSql("'1'");
             entity.Property(e => e.Spawntimesecs).HasDefaultValueSql("'120'");
             entity.Property(e => e.ZoneId).HasComment("Zone Identifier");
+        });
+
+        modelBuilder.Entity<CreatureDefaultTrainer>(entity =>
+        {
+            entity.HasKey(e => e.CreatureId).HasName("PRIMARY");
+
+            entity.Property(e => e.CreatureId).ValueGeneratedNever();
         });
 
         modelBuilder.Entity<CreatureQuestender>(entity =>
@@ -248,6 +265,13 @@ public partial class WorldDbContext : DbContext
             entity.Property(e => e.Stackable).HasDefaultValueSql("'1'");
         });
 
+        modelBuilder.Entity<PlayercreateinfoSkill>(entity =>
+        {
+            entity.HasKey(e => new { e.RaceMask, e.ClassMask, e.Skill })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0, 0 });
+        });
+
         modelBuilder.Entity<PoolQuest>(entity =>
         {
             entity.HasKey(e => e.Entry).HasName("PRIMARY");
@@ -284,6 +308,34 @@ public partial class WorldDbContext : DbContext
 
             entity.Property(e => e.Id).ValueGeneratedNever();
             entity.Property(e => e.BreadcrumbForQuestId).HasDefaultValueSql("'0'");
+        });
+
+        modelBuilder.Entity<SpellRank>(entity =>
+        {
+            entity.HasKey(e => new { e.FirstSpellId, e.Rank })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+
+            entity.ToTable("spell_ranks", tb => tb.HasComment("Spell Rank Data"));
+        });
+
+        modelBuilder.Entity<Trainer>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.Requirement).HasDefaultValueSql("'0'");
+            entity.Property(e => e.Type).HasDefaultValueSql("'2'");
+            entity.Property(e => e.VerifiedBuild).HasDefaultValueSql("'0'");
+        });
+
+        modelBuilder.Entity<TrainerSpell>(entity =>
+        {
+            entity.HasKey(e => new { e.TrainerId, e.SpellId })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+
+            entity.Property(e => e.VerifiedBuild).HasDefaultValueSql("'0'");
         });
 
         OnModelCreatingPartial(modelBuilder);

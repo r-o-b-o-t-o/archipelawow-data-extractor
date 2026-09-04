@@ -1,14 +1,14 @@
-using ArchipelaWoW.QuestExtractor.Dbc;
-using ArchipelaWoW.QuestExtractor.Entities;
-using ArchipelaWoW.QuestExtractor.Services;
-using ArchipelaWoW.QuestExtractor.Services.Repositories;
+using ArchipelaWoW.DataExtractor.Dbc;
+using ArchipelaWoW.DataExtractor.Entities;
+using ArchipelaWoW.DataExtractor.Services;
+using ArchipelaWoW.DataExtractor.Services.Repositories;
 using DBDefsLib;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using MySqlConnector;
 using Roboto.Dbc.Reader;
 
-namespace ArchipelaWoW.QuestExtractor.Extensions;
+namespace ArchipelaWoW.DataExtractor.Extensions;
 
 public static class ServiceCollectionExtensions
 {
@@ -73,13 +73,17 @@ public static class ServiceCollectionExtensions
             .AddSingleton<QuestInfoContainer>()
             .AddSingleton<QuestSortContainer>()
             .AddSingleton<WorldMapAreaContainer>()
-            .AddSingleton<FactionTemplateContainer>();
+            .AddSingleton<FactionTemplateContainer>()
+            .AddSingleton<SpellContainer>()
+            .AddSingleton<SkillLineContainer>()
+            .AddSingleton<SkillLineAbilityContainer>();
     }
 
     public static IServiceCollection AddRepositories(this IServiceCollection services)
     {
         return services
             .AddScoped<QuestTemplateRepository>()
-            .AddScoped<DisablesRepository>();
+            .AddScoped<DisablesRepository>()
+            .AddScoped<TrainerRepository>();
     }
 }

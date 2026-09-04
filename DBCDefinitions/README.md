@@ -2,7 +2,7 @@
 
 The `.dbd` files in this directory describe the column layout of the client's DBC files per build.
 They are used at compile time by [Roboto.Dbc.Generator](https://www.nuget.org/packages/Roboto.Dbc.Generator)
-to generate the reader classes under the `ArchipelaWoW.QuestExtractor.Dbc` namespace.
+to generate the reader classes under the `ArchipelaWoW.DataExtractor.Dbc` namespace.
 
 ## Attribution
 

@@ -1,7 +1,7 @@
-﻿using ArchipelaWoW.QuestExtractor.Entities.World;
+﻿using ArchipelaWoW.DataExtractor.Entities.World;
 using Microsoft.EntityFrameworkCore;
 
-namespace ArchipelaWoW.QuestExtractor.Entities;
+namespace ArchipelaWoW.DataExtractor.Entities;
 
 public partial class WorldDbContext
 {
@@ -55,6 +55,14 @@ public partial class WorldDbContext
                 .WithOne(e => e.EventQuest)
                 .HasForeignKey(e => e.Quest)
                 .IsRequired(false);
+        });
+
+        modelBuilder.Entity<Trainer>(entity =>
+        {
+            entity
+                .HasMany(trainer => trainer.Spells)
+                .WithOne(spell => spell.Trainer)
+                .HasForeignKey(spell => spell.TrainerId);
         });
 
         modelBuilder.Entity<PoolQuest>(entity =>

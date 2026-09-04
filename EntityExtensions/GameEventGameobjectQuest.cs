@@ -1,4 +1,4 @@
-﻿namespace ArchipelaWoW.QuestExtractor.Entities.World;
+﻿namespace ArchipelaWoW.DataExtractor.Entities.World;
 
 public partial class GameEventGameobjectQuest
 {

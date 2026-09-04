@@ -1,14 +1,14 @@
-# ArchipelaWoW Quest Extractor
+# ArchipelaWoW Data Extractor
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Generates the `data/locations/quests.json` file consumed by
+Generates the `data/quests.json` and `data/spells.json` files consumed by
 [ArchipelaWoW](https://github.com/r-o-b-o-t-o/archipelawow), a custom APWorld for the
 [Archipelago](https://archipelago.gg) randomizer framework.
 
 The tool reads an [AzerothCore](https://www.azerothcore.org) world database and a 3.3.5a client's DBC
-files, filters the quest list down to the ones that make sense as randomizer locations, and writes the
-result as JSON.
+files, works out which quests and which trainable spells make sense as randomizer locations, and
+writes each list as JSON. Both extracts are produced in one run.
 
 ## Contents
 
@@ -16,8 +16,8 @@ result as JSON.
 - [Preparing the world database](#preparing-the-world-database)
 - [Configuration](#configuration)
 - [Running](#running)
-- [What gets filtered out](#what-gets-filtered-out)
-- [Output](#output)
+- [Quests](#quests)
+- [Spells](#spells)
 - [Regenerating the entity model](#regenerating-the-entity-model)
 - [Third-party data](#third-party-data)
 - [License](#license)
@@ -44,7 +44,8 @@ written back to the database and stay populated, so this only has to be done onc
 (and again after any change that adds spawns). You can turn the options back off afterwards.
 
 Without this step most quests are extracted with empty `startZones` and `endZones`. The extractor logs
-a warning when it detects that, but it will not stop.
+a warning when it detects that, but it will not stop. Only the quest extract needs this; the spell
+extract does not read the spawn zones.
 
 The extractor only reads from the database.
 
@@ -62,7 +63,7 @@ works from both `dotnet run` and Visual Studio.
 
 | Variable            | Required | Default          | Description                                                                       |
 | ------------------- | -------- | ---------------- | --------------------------------------------------------------------------------- |
-| `OUT_DIR`           | yes      | —                | Directory `quests.json` is written to. Point it at ArchipelaWoW's `data/locations`. |
+| `OUT_DIR`           | yes      | —                | Directory the extracts are written to. Point it at ArchipelaWoW's `data`.           |
 | `DBC_DIRECTORY`     | yes      | —                | Directory holding the extracted `.dbc` files.                                       |
 | `WORLD_DB_HOST`     | no       | `localhost`      | World database host.                                                                |
 | `WORLD_DB_PORT`     | no       | `3306`           | World database port.                                                                |
@@ -78,10 +79,12 @@ works from both `dotnet run` and Visual Studio.
 dotnet run
 ```
 
-The tool logs every quest it drops along with the reason, then writes `quests.json` to `OUT_DIR`,
-creating the directory if needed.
+The tool logs every quest it drops along with the reason, then writes `quests.json` and `spells.json`
+to `OUT_DIR`, creating the directory if needed.
 
-## What gets filtered out
+## Quests
+
+### What gets filtered out
 
 A quest only becomes an Archipelago location if a player can reliably complete it once, on their own,
 on any character the run allows. Quests are dropped when they are:
@@ -108,7 +111,7 @@ ArchipelaWoW to include or exclude per option. Note that the quest data almost n
 `SuggestedGroupNum` on them, so `suggestedGroupSize` is `null` on virtually every one and is no
 substitute for the flag.
 
-## Output
+### Output
 
 `quests.json` is an array of quest objects sorted by id:
 
@@ -136,7 +139,7 @@ substitute for the flag.
 `races` and `classes` are `null` when the quest carries no restriction, and a list of DBC ids
 otherwise.
 
-### Prerequisites
+#### Prerequisites
 
 `requiresAll` holds prerequisites that are all needed, `requiresAny` prerequisites of which any single
 one is enough. Both only ever reference quests that are themselves in the file, so a chain can be
@@ -177,19 +180,92 @@ one entry of `requiresAny`. Prerequisites are resolved after filtering: a quest 
 whole `requiresAny` list or any of its `requiresAll` entries did not survive, which is why the chains
 that remain are always completable.
 
+## Spells
+
+Training a class ability is a location in ArchipelaWoW, and the ability itself is an item, so the
+extract has to say which spells a class can train and at what level. Neither half of that answer lives
+in one place: the trainer lists come from the world database, the names, ranks and effects from
+`Spell.dbc`, and which abilities a character is created holding from `SkillLineAbility.dbc`.
+
+### What becomes an entry
+
+- **Class spells** (`"kind": "class"`) — the first rank of everything a class trainer sells. Only first
+  ranks: shuffling every rank would multiply the pool several times over for no added variety, and a
+  character handed the first rank trains the rest from its trainer as usual.
+- **Riding ranks** (`"riding"`) — every rank a mount trainer sells, because here the ranks *are* the
+  progression: a character handed Journeyman Riding has no trainer path to Artisan unless Artisan is in
+  the pool too. The four ranks are told apart from the rest by replacing one another in turn; Cold
+  Weather Flying replaces nothing and is replaced by nothing, so it comes out as `"mount"` and stays off
+  that ladder.
+- **Weapon skills** (`"weapon"`) — the weapon proficiencies a weapon master sells. A weapon master is
+  keyed by no class at all, so these carry `classMask` rather than `classId`, and a class that is
+  created already holding the skill is left out of the mask.
+- **Starter abilities** (`"starter"`) — what a character is created knowing, worked out the way the core
+  does it, by walking the default skills of its race and class. These are resolved first and then kept
+  out of the trainer sweep, so a realm with ArchipelaWoW's own update applied — which puts the starting
+  abilities on the class trainers so their checks can be bought — extracts identically to one without it.
+
+Dropped along the way: anything past rank 1 on a class trainer, spells flagged
+`SPELL_ATTR0_DO_NOT_DISPLAY` (the bookkeeping entries a player never sees, like "Maelstrom Ready!"),
+Dual Wield and the armor proficiencies, a mage's `Teleport:` and `Portal:` spells, and a hunter's Auto Shot.
+
+Death knights are left out entirely, since ArchipelaWoW does not offer the class: their trainers are
+skipped, their starting kit is not collected, and their bit is cleared from every weapon skill's
+`classMask`. The classes that *are* extracted are listed in `RANDOMIZED_CLASS_IDS` in
+[`SpellExtractorService`](Services/SpellExtractorService.cs), the one place to change if that ever moves.
+
+### Output
+
+`spells.json` is an array sorted by class, then by required level, then by id:
+
+```json
+{
+  "id": 403,
+  "name": "Lightning Bolt",
+  "classId": 7,
+  "classMask": 0,
+  "reqLevel": 1,
+  "reqSkillRank": 0,
+  "taughtSpells": [],
+  "raceMask": 0,
+  "factions": 0,
+  "expansion": 0,
+  "kind": "starter"
+}
+```
+
+| Field          | Meaning                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------ |
+| `classId`      | The class whose trainer teaches it, or `0` for riding ranks and weapon skills.               |
+| `classMask`    | Which classes may buy it, for the entries no single class owns. `0` when `classId` says it.  |
+| `reqLevel`     | Lowest level any trainer will sell it at.                                                    |
+| `reqSkillRank` | Skill the trainer asks for first, which is how the riding ranks gate each other.             |
+| `taughtSpells` | What the entry teaches when cast, for the few that wrap a spell rather than being one.        |
+| `raceMask`     | Races that can learn it, `0` when every race can.                                            |
+| `factions`     | `1` Alliance, `2` Horde, `0` when both teams' trainers teach it.                              |
+| `expansion`    | `0` classic, `1` Outland, `2` Northrend: how far a seed must reach for the trainer.           |
+
+A handful of entries wrap another spell rather than being one — a paladin's Judgement, the class
+mounts, Flight Form. The trainer *casts* those instead of teaching them, so what comes out the other
+side is listed in `taughtSpells` for the server module to hold back until its own item arrives.
+
+Some names are shared by several spells: a mage and a druid both have a Remove Curse, and a couple of
+paladin spells come in one copy per faction. Archipelago keys items and locations by name, so the
+extractor logs every clash it finds and ArchipelaWoW qualifies those names on its side.
+
 ## Regenerating the entity model
 
 Everything under [`Entities/`](Entities) is scaffolded from the world database and should not be edited
 by hand; the hand-written navigations and keys live in [`EntityExtensions/`](EntityExtensions) as
-partial classes instead. Only the 16 tables the extractor actually reads are generated. From the Visual
+partial classes instead. Only the 21 tables the extractor actually reads are generated. From the Visual
 Studio Package Manager Console:
 
 ```powershell
 Scaffold-DbContext 'Host=localhost;User=root;Password=root;Database=acore_world' Microting.EntityFrameworkCore.MySql `
   -Context WorldDbContext -NoOnConfiguring -DataAnnotations -Force `
-  -ContextDir Entities -ContextNamespace ArchipelaWoW.QuestExtractor.Entities `
-  -OutputDir Entities/World -Namespace ArchipelaWoW.QuestExtractor.Entities.World `
-  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables
+  -ContextDir Entities -ContextNamespace ArchipelaWoW.DataExtractor.Entities `
+  -OutputDir Entities/World -Namespace ArchipelaWoW.DataExtractor.Entities.World `
+  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills
 ```
 
 Two things to know before running it:

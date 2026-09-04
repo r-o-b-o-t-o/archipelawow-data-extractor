@@ -1,11 +1,11 @@
-using ArchipelaWoW.QuestExtractor.Extensions;
-using ArchipelaWoW.QuestExtractor.Services;
+using ArchipelaWoW.DataExtractor.Extensions;
+using ArchipelaWoW.DataExtractor.Services;
 using dotenv.net;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace ArchipelaWoW.QuestExtractor;
+namespace ArchipelaWoW.DataExtractor;
 
 public static class Program
 {
@@ -23,8 +23,8 @@ public static class Program
             .Build();
 
         using var scope = host.Services.CreateScope();
-        var extractor = scope.ServiceProvider.GetRequiredService<QuestExtractorService>();
-        await extractor.ExtractQuests();
+        await scope.ServiceProvider.GetRequiredService<QuestExtractorService>().ExtractQuests();
+        await scope.ServiceProvider.GetRequiredService<SpellExtractorService>().ExtractSpells();
     }
 
     /// <summary>
@@ -67,6 +67,7 @@ public static class Program
             .AddDbcContainers()
             .AddWorldDbContext()
             .AddRepositories()
-            .AddTransient<QuestExtractorService>();
+            .AddTransient<QuestExtractorService>()
+            .AddTransient<SpellExtractorService>();
     }
 }

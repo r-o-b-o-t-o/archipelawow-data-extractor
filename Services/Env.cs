@@ -1,4 +1,4 @@
-namespace ArchipelaWoW.QuestExtractor.Services;
+namespace ArchipelaWoW.DataExtractor.Services;
 
 public static class Env
 {

@@ -1,6 +1,6 @@
 {
     "profiles": {
-        "ArchipelaWoW.QuestExtractor": {
+        "ArchipelaWoW.DataExtractor": {
             "commandName": "Project"
         }
     }

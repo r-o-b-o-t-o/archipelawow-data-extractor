@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
-namespace ArchipelaWoW.QuestExtractor.Entities.World;
+namespace ArchipelaWoW.DataExtractor.Entities.World;
 
 [PrimaryKey("Id", "Quest", "EventEntry")]
 [Table("game_event_gameobject_quest")]

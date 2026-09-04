@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
-namespace ArchipelaWoW.QuestExtractor.Entities.World;
+namespace ArchipelaWoW.DataExtractor.Entities.World;
 
 [Table("quest_template_addon")]
 [MySqlCollation("utf8mb4_unicode_ci")]

@@ -1,8 +1,8 @@
-﻿using ArchipelaWoW.QuestExtractor.Entities;
-using ArchipelaWoW.QuestExtractor.Entities.World;
+﻿using ArchipelaWoW.DataExtractor.Entities;
+using ArchipelaWoW.DataExtractor.Entities.World;
 using Microsoft.EntityFrameworkCore;
 
-namespace ArchipelaWoW.QuestExtractor.Services.Repositories;
+namespace ArchipelaWoW.DataExtractor.Services.Repositories;
 
 public class QuestTemplateRepository(WorldDbContext db)
 {
