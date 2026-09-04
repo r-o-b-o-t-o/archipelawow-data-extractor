@@ -1,5 +1,6 @@
 # ArchipelaWoW Data Extractor
 
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/r-o-b-o-t-o/archipelawow-data-extractor/build.yml?branch=master)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Generates the `data/quests.json` and `data/spells.json` files consumed by
