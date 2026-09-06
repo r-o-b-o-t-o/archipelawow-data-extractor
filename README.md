@@ -199,8 +199,12 @@ in one place: the trainer lists come from the world database, the names, ranks a
   Weather Flying replaces nothing and is replaced by nothing, so it comes out as `"mount"` and stays off
   that ladder.
 - **Weapon skills** (`"weapon"`) — the weapon proficiencies a weapon master sells. A weapon master is
-  keyed by no class at all, so these carry `classMask` rather than `classId`, and a class that is
-  created already holding the skill is left out of the mask.
+  keyed by no class at all, so these carry `classRaces` rather than `classId`: who may buy one is read
+  off `SkillLineAbility.dbc` and `SkillRaceClassInfo.dbc` the way `Player::IsSpellFitByClassAndRace`
+  does, and whoever is created already holding the skill is left out. Both halves matter — Thrown names
+  no class in its skill line entry, and only `SkillRaceClassInfo.dbc` says it belongs to warriors,
+  hunters and rogues — and so does race: a dwarf hunter starts with Guns and a troll one with Bows, so
+  each is sold what the other started with.
 - **Starter abilities** (`"starter"`) — what a character is created knowing, worked out the way the core
   does it, by walking the default skills of its race and class. These are resolved first and then kept
   out of the trainer sweep, so a realm with ArchipelaWoW's own update applied — which puts the starting
@@ -211,8 +215,8 @@ Dropped along the way: anything past rank 1 on a class trainer, spells flagged
 Dual Wield and the armor proficiencies, a mage's `Teleport:` and `Portal:` spells, and a hunter's Auto Shot.
 
 Death knights are left out entirely, since ArchipelaWoW does not offer the class: their trainers are
-skipped, their starting kit is not collected, and their bit is cleared from every weapon skill's
-`classMask`. The classes that *are* extracted are listed in `RANDOMIZED_CLASS_IDS` in
+skipped, their starting kit is not collected, and they are named by no weapon skill's `classRaces`.
+The classes that *are* extracted are listed in `RANDOMIZED_CLASS_IDS` in
 [`SpellExtractorService`](Services/SpellExtractorService.cs), the one place to change if that ever moves.
 
 ### Output
@@ -224,7 +228,7 @@ skipped, their starting kit is not collected, and their bit is cleared from ever
   "id": 403,
   "name": "Lightning Bolt",
   "classId": 7,
-  "classMask": 0,
+  "classRaces": {},
   "reqLevel": 1,
   "reqSkillRank": 0,
   "taughtSpells": [],
@@ -238,11 +242,11 @@ skipped, their starting kit is not collected, and their bit is cleared from ever
 | Field          | Meaning                                                                                    |
 | -------------- | ------------------------------------------------------------------------------------------ |
 | `classId`      | The class whose trainer teaches it, or `0` for riding ranks and weapon skills.               |
-| `classMask`    | Which classes may buy it, for the entries no single class owns. `0` when `classId` says it.  |
+| `classRaces`   | The races of each class that may buy it, for the entries no single class owns. Empty otherwise. |
 | `reqLevel`     | Lowest level any trainer will sell it at.                                                    |
 | `reqSkillRank` | Skill the trainer asks for first, which is how the riding ranks gate each other.             |
 | `taughtSpells` | What the entry teaches when cast, for the few that wrap a spell rather than being one.        |
-| `raceMask`     | Races that can learn it, `0` when every race can.                                            |
+| `raceMask`     | Races that can learn it, `0` when every race can. Weapon skills carry theirs in `classRaces`. |
 | `factions`     | `1` Alliance, `2` Horde, `0` when both teams' trainers teach it.                              |
 | `expansion`    | `0` classic, `1` Outland, `2` Northrend: how far a seed must reach for the trainer.           |
 

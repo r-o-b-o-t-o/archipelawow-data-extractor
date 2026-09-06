@@ -1,4 +1,4 @@
-using ArchipelaWoW.DataExtractor.Dbc;
+﻿using ArchipelaWoW.DataExtractor.Dbc;
 using ArchipelaWoW.DataExtractor.Entities;
 using ArchipelaWoW.DataExtractor.Services;
 using ArchipelaWoW.DataExtractor.Services.Repositories;
@@ -76,7 +76,8 @@ public static class ServiceCollectionExtensions
             .AddSingleton<FactionTemplateContainer>()
             .AddSingleton<SpellContainer>()
             .AddSingleton<SkillLineContainer>()
-            .AddSingleton<SkillLineAbilityContainer>();
+            .AddSingleton<SkillLineAbilityContainer>()
+            .AddSingleton<SkillRaceClassInfoContainer>();
     }
 
     public static IServiceCollection AddRepositories(this IServiceCollection services)

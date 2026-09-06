@@ -27,10 +27,16 @@ public class ExtractedSpellData
 
     /// <summary>
     /// The class whose trainer teaches this, or 0 for the entries no single class owns: the riding
-    /// ranks and the weapon skills, which name their classes in <see cref="ClassMask"/> instead.
+    /// ranks and the weapon skills, which name their classes in <see cref="ClassRaces"/> instead.
     /// </summary>
     public int ClassId { get; set; }
-    public int ClassMask { get; set; }
+
+    /// <summary>
+    /// For a weapon skill, the races of each class that can still buy it from a weapon master, keyed
+    /// by class id. A class the skill is closed to, and a race and class created already holding it --
+    /// a warrior with Thrown, a troll hunter with Bows -- is left out.
+    /// </summary>
+    public Dictionary<int, int> ClassRaces { get; set; } = [];
     public int ReqLevel { get; set; }
     public int ReqSkillRank { get; set; }
 
@@ -56,6 +62,7 @@ public class SpellExtractorService(
         SpellContainer spells,
         SkillLineContainer skillLines,
         SkillLineAbilityContainer skillLineAbilities,
+        SkillRaceClassInfoContainer skillRaceClassInfos,
         FactionTemplateContainer factionTemplates
     )
 {
@@ -133,6 +140,11 @@ public class SpellExtractorService(
     // 55 with a kit of its own and ArchipelaWoW does not offer it.
     private static readonly int[] RANDOMIZED_CLASS_IDS = [1, 2, 3, 4, 5, 7, 8, 9, 11];
 
+    // The races a Wrath character can be. Listed for the same reason as the classes above: race 9, the
+    // goblin, holds a mask bit and a ChrRaces row of its own but is not playable until Cataclysm.
+    private static readonly int[] PLAYABLE_RACE_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11];
+    private static readonly int PLAYABLE_RACES_MASK = PLAYABLE_RACE_IDS.Aggregate(0, (mask, raceId) => mask | RaceBit(raceId));
+
     // A race or class mask of zero means "every one of them" throughout the DBCs and the create-info
     // tables, so it is widened to these before two masks are intersected.
     private const int ALL_RACES_MASK = 0x7FF;
@@ -140,6 +152,7 @@ public class SpellExtractorService(
 
     private Dictionary<int, List<SkillLineAbility>> abilitiesBySpell;
     private Dictionary<int, List<SkillLineAbility>> abilitiesBySkill;
+    private Dictionary<int, List<SkillRaceClassInfo>> raceClassInfoBySkill;
     private HashSet<int> ladderSpells;
     private HashSet<int> classSkillLines;
 
@@ -148,6 +161,7 @@ public class SpellExtractorService(
         string outDir = OutputDirectory.Prepare();
 
         BuildAbilityIndexes();
+        BuildRaceClassIndex();
         ladderSpells = CollectLadderSpells();
         classSkillLines = [.. skillLines.Where(skillLine => skillLine.CategoryID == SKILL_CATEGORY_CLASS).Select(skillLine => skillLine.ID)];
 
@@ -168,7 +182,7 @@ public class SpellExtractorService(
         [
             .. CollectTrainerSpells(trainers, higherRanks, trainerTeams, trainerExpansions)
                 .Where(spell => !starterKeys.Contains((spell.ClassId, spell.Id))),
-            .. CollectWeaponSkills(trainers, CollectCreatedSkills(createSkills), trainerExpansions),
+            .. CollectWeaponSkills(trainers, createSkills, trainerExpansions),
             .. starters,
         ];
 
@@ -199,6 +213,20 @@ public class SpellExtractorService(
                 index[key] = abilities = [];
             }
             abilities.Add(ability);
+        }
+    }
+
+    private void BuildRaceClassIndex()
+    {
+        raceClassInfoBySkill = [];
+
+        foreach (SkillRaceClassInfo info in skillRaceClassInfos)
+        {
+            if (!raceClassInfoBySkill.TryGetValue(info.SkillID, out var infos))
+            {
+                raceClassInfoBySkill[info.SkillID] = infos = [];
+            }
+            infos.Add(info);
         }
     }
 
@@ -347,7 +375,7 @@ public class SpellExtractorService(
                     ReqLevel = trainerSpell.ReqLevel,
                     ReqSkillRank = (int)trainerSpell.ReqSkillRank,
                     TaughtSpells = TaughtSpells(spell),
-                    RaceMask = RaceMaskFor(AbilitiesOf(spellId)),
+                    RaceMask = RacesFor(AbilitiesOf(spellId), (int)trainer.Requirement),
                     Factions = trainerTeams.GetValueOrDefault(trainer.Id, FACTION_ANY),
                     Expansion = trainerExpansions.GetValueOrDefault(trainer.Id, EXPANSION_CLASSIC),
                     Kind = SpellKind.Class,
@@ -359,41 +387,40 @@ public class SpellExtractorService(
     }
 
     /// <summary>
-    /// Class id to the skills a character of that class is created holding.
+    /// Whether a character of this race and class is created already holding a skill.
     ///
-    /// A weapon skill the class already has is not something its weapon master will ever sell, so it
-    /// cannot become a check however many masters list it.
+    /// A weapon skill the character already has is not something a weapon master will ever sell, so it
+    /// cannot become a check however many masters list it. Mirrors what the core hands out at creation
+    /// in ObjectMgr: both masks of the create-info row have to name the character, and
+    /// SkillRaceClassInfo has to hold the skill for that pair. Which weapon a character starts with is
+    /// as much a matter of race as of class -- a dwarf hunter is created holding Guns and a troll one
+    /// Bows -- and the ones it did not start with are still there to be bought.
     /// </summary>
-    private static Dictionary<int, HashSet<int>> CollectCreatedSkills(List<PlayercreateinfoSkill> createSkills)
+    private bool IsCreatedHolding(List<PlayercreateinfoSkill> createSkills, int skillId, int raceId, int classId)
     {
-        Dictionary<int, HashSet<int>> byClass = [];
-        foreach (PlayercreateinfoSkill createSkill in createSkills)
-        {
-            int classMask = Widen((int)createSkill.ClassMask, ALL_CLASSES_MASK);
-            foreach (int classId in RANDOMIZED_CLASS_IDS.Where(classId => (classMask & ClassBit(classId)) != 0))
-            {
-                if (!byClass.TryGetValue(classId, out var skills))
-                {
-                    byClass[classId] = skills = [];
-                }
-                skills.Add(createSkill.Skill);
-            }
-        }
-        return byClass;
+        return HasRaceClassInfo(skillId, raceId, classId)
+            && createSkills.Any(createSkill => createSkill.Skill == skillId
+                && (Widen((int)createSkill.RaceMask, ALL_RACES_MASK) & RaceBit(raceId)) != 0
+                && (Widen((int)createSkill.ClassMask, ALL_CLASSES_MASK) & ClassBit(classId)) != 0);
     }
 
     /// <summary>
-    /// The weapon proficiencies a weapon master sells, with the classes that can buy each.
+    /// The weapon proficiencies a weapon master sells, with the races and classes that can buy each.
     ///
     /// Weapon masters are keyed by nothing at all -- any class may talk to one -- so unlike a class
     /// trainer they carry no class of their own, and the classes come from the skill line instead. One
-    /// entry covers the lot rather than one per class: the spell is the same whoever buys it, and a
-    /// class that already holds the skill from character creation is simply left out of the mask.
+    /// entry covers the lot rather than one per class: the spell is the same whoever buys it, and the
+    /// race and class pairs that can never buy it are simply left out of the map.
     /// </summary>
     private List<ExtractedSpellData> CollectWeaponSkills(List<Trainer> trainers,
-        Dictionary<int, HashSet<int>> createdSkills, Dictionary<uint, int> trainerExpansions)
+        List<PlayercreateinfoSkill> createSkills, Dictionary<uint, int> trainerExpansions)
     {
         List<ExtractedSpellData> collected = [];
+
+        // Who may buy a weapon skill turns on the spell and nothing else, while a weapon master that
+        // sells it is one of dozens, so the answer is worked out once and shared by every copy. The
+        // copies are collapsed in Deduplicate() and the map is never written to again.
+        Dictionary<int, Dictionary<int, int>> classRacesBySpell = [];
 
         foreach (Trainer trainer in trainers.Where(t => t.Type == TRAINER_TYPE_TRADESKILL))
         {
@@ -406,21 +433,12 @@ public class SpellExtractorService(
                     continue;
                 }
 
-                var abilities = AbilitiesOf(spellId);
-                int eligible = abilities.Aggregate(0, (mask, ability) => mask | Widen(ability.ClassMask, ALL_CLASSES_MASK));
-                var skills = abilities.Select(ability => ability.SkillLine).ToHashSet();
-
-                int classMask = 0;
-                foreach (int classId in RANDOMIZED_CLASS_IDS)
+                if (!classRacesBySpell.TryGetValue(spellId, out Dictionary<int, int> classRaces))
                 {
-                    bool alreadyKnown = skills.Overlaps(createdSkills.GetValueOrDefault(classId, []));
-                    if ((eligible & ClassBit(classId)) != 0 && !alreadyKnown)
-                    {
-                        classMask |= ClassBit(classId);
-                    }
+                    classRacesBySpell[spellId] = classRaces = BuyersOf(spellId, createSkills);
                 }
 
-                if (classMask == 0)
+                if (classRaces.Count == 0)
                 {
                     continue;
                 }
@@ -429,11 +447,10 @@ public class SpellExtractorService(
                 {
                     Id = spellId,
                     Name = spell.NameLang,
-                    ClassMask = classMask,
+                    ClassRaces = classRaces,
                     ReqLevel = trainerSpell.ReqLevel,
                     ReqSkillRank = (int)trainerSpell.ReqSkillRank,
                     TaughtSpells = TaughtSpells(spell),
-                    RaceMask = RaceMaskFor(abilities),
                     Factions = FACTION_ANY,
                     Expansion = trainerExpansions.GetValueOrDefault(trainer.Id, EXPANSION_CLASSIC),
                     Kind = SpellKind.Weapon,
@@ -442,6 +459,92 @@ public class SpellExtractorService(
         }
 
         return collected;
+    }
+
+    /// <summary>
+    /// The races of each class that can still buy a weapon skill, keyed by class id.
+    ///
+    /// A class with no race left to sell to is not in the map at all, and a map with nothing in it is a
+    /// skill nobody can buy.
+    /// </summary>
+    private Dictionary<int, int> BuyersOf(int spellId, List<PlayercreateinfoSkill> createSkills)
+    {
+        var abilities = AbilitiesOf(spellId);
+        var skills = abilities.Select(ability => ability.SkillLine).ToHashSet();
+
+        Dictionary<int, int> classRaces = [];
+        foreach (int classId in RANDOMIZED_CLASS_IDS)
+        {
+            int raceMask = 0;
+            foreach (int raceId in PLAYABLE_RACE_IDS)
+            {
+                if (IsFitByClassAndRace(abilities, raceId, classId)
+                    && !skills.Any(skill => IsCreatedHolding(createSkills, skill, raceId, classId)))
+                {
+                    raceMask |= RaceBit(raceId);
+                }
+            }
+
+            if (raceMask != 0)
+            {
+                classRaces[classId] = raceMask;
+            }
+        }
+
+        return classRaces;
+    }
+
+    /// <summary>
+    /// The races of one class the core would offer a spell to, or 0 when no race of it is barred.
+    ///
+    /// Zero is what the extract means by "every race" throughout, so a spell open to the whole class
+    /// comes out unrestricted rather than as a mask naming all ten races.
+    /// </summary>
+    private int RacesFor(List<SkillLineAbility> abilities, int classId)
+    {
+        int raceMask = 0;
+        foreach (int raceId in PLAYABLE_RACE_IDS)
+        {
+            if (IsFitByClassAndRace(abilities, raceId, classId))
+            {
+                raceMask |= RaceBit(raceId);
+            }
+        }
+
+        return raceMask == PLAYABLE_RACES_MASK ? 0 : raceMask;
+    }
+
+    /// <summary>
+    /// Whether the core would offer a spell to a character of this race and class.
+    ///
+    /// Mirrors Player::IsSpellFitByClassAndRace: one of the skill line entries of the spell has to name
+    /// the race and the class, and SkillRaceClassInfo has to hold that pair for the skill line the
+    /// entry sits in -- and a spell that sits in no skill line at all is closed to nobody. The second
+    /// half is the one that matters for the weapon skills, whose entries mostly name nobody: only
+    /// SkillRaceClassInfo says that Thrown belongs to warriors, hunters and rogues and to no one else.
+    /// </summary>
+    private bool IsFitByClassAndRace(List<SkillLineAbility> abilities, int raceId, int classId)
+    {
+        if (abilities.Count == 0)
+        {
+            return true;
+        }
+
+        return abilities.Any(ability =>
+            (Widen(ability.RaceMask, ALL_RACES_MASK) & RaceBit(raceId)) != 0
+            && (Widen(ability.ClassMask, ALL_CLASSES_MASK) & ClassBit(classId)) != 0
+            && HasRaceClassInfo(ability.SkillLine, raceId, classId));
+    }
+
+    /// <summary>
+    /// Whether SkillRaceClassInfo hands a skill line to this race and class, the way
+    /// GetSkillRaceClassInfo in DBCStores reads it.
+    /// </summary>
+    private bool HasRaceClassInfo(int skillLineId, int raceId, int classId)
+    {
+        return raceClassInfoBySkill.GetValueOrDefault(skillLineId, []).Any(info =>
+            (Widen(info.RaceMask, ALL_RACES_MASK) & RaceBit(raceId)) != 0
+            && (Widen(info.ClassMask, ALL_CLASSES_MASK) & ClassBit(classId)) != 0);
     }
 
     /// <summary>
@@ -492,9 +595,26 @@ public class SpellExtractorService(
                     continue;
                 }
 
-                bool unrestricted = raceMask == ALL_RACES_MASK;
                 foreach (int classId in RANDOMIZED_CLASS_IDS.Where(classId => (classMask & ClassBit(classId)) != 0))
                 {
+                    // The core only hands a create-info skill to a race and class SkillRaceClassInfo
+                    // holds that skill for, so the races are narrowed per class rather than once for
+                    // the row
+                    int classRaceMask = 0;
+                    foreach (int raceId in PLAYABLE_RACE_IDS)
+                    {
+                        if ((raceMask & RaceBit(raceId)) != 0 && HasRaceClassInfo(createSkill.Skill, raceId, classId))
+                        {
+                            classRaceMask |= RaceBit(raceId);
+                        }
+                    }
+
+                    if (classRaceMask == 0)
+                    {
+                        continue;
+                    }
+
+                    bool unrestricted = classRaceMask == PLAYABLE_RACES_MASK;
                     var key = (classId, ability.Spell);
                     if (!collected.TryGetValue(key, out ExtractedSpellData existing))
                     {
@@ -508,7 +628,7 @@ public class SpellExtractorService(
                             // module's own update put it there.
                             ReqLevel = 1,
                             TaughtSpells = TaughtSpells(spell),
-                            RaceMask = unrestricted ? 0 : raceMask,
+                            RaceMask = unrestricted ? 0 : classRaceMask,
                             Factions = FACTION_ANY,
                             Expansion = EXPANSION_CLASSIC,
                             Kind = SpellKind.Starter,
@@ -516,7 +636,7 @@ public class SpellExtractorService(
                     }
                     else if (existing.RaceMask != 0)
                     {
-                        existing.RaceMask = unrestricted ? 0 : existing.RaceMask | raceMask;
+                        existing.RaceMask = unrestricted ? 0 : existing.RaceMask | classRaceMask;
                     }
                 }
             }
@@ -566,7 +686,6 @@ public class SpellExtractorService(
             existing.ReqSkillRank = Math.Min(existing.ReqSkillRank, spell.ReqSkillRank);
             existing.Expansion = Math.Min(existing.Expansion, spell.Expansion);
             existing.Factions |= spell.Factions;
-            existing.ClassMask |= spell.ClassMask;
         }
 
         foreach (ExtractedSpellData spell in best.Values)
@@ -609,24 +728,6 @@ public class SpellExtractorService(
     private List<SkillLineAbility> AbilitiesOfSkill(int skillLineId)
     {
         return abilitiesBySkill.GetValueOrDefault(skillLineId, []);
-    }
-
-    /// <summary>
-    /// The races that can learn a spell, as the union of its skill line entries. An entry that names no
-    /// race is open to every race, and makes the whole spell unrestricted.
-    /// </summary>
-    private static int RaceMaskFor(List<SkillLineAbility> abilities)
-    {
-        int mask = 0;
-        foreach (SkillLineAbility ability in abilities)
-        {
-            if (ability.RaceMask == 0)
-            {
-                return 0;
-            }
-            mask |= ability.RaceMask;
-        }
-        return mask;
     }
 
     /// <summary>
@@ -679,5 +780,10 @@ public class SpellExtractorService(
     private static int ClassBit(int classId)
     {
         return 1 << (classId - 1);
+    }
+
+    private static int RaceBit(int raceId)
+    {
+        return 1 << (raceId - 1);
     }
 }
