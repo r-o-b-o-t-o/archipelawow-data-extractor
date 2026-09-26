@@ -738,12 +738,15 @@ public class QuestExtractorService(
                 .SelectMany(group => membersByGroup[group]));
         }
 
-        // A mandatory prerequisite already satisfies every "one of" clause it takes part in. The
-        // PrevQuestId seed lands in RequiresAny before the groups above fill RequiresAll, so both
-        // lists have to settle before the redundant entries can be told apart.
+        // A mandatory prerequisite already satisfies every "one of" clause it takes part in, so the
+        // whole clause goes, not just that entry. The PrevQuestId seed lands in RequiresAny before the
+        // groups above fill RequiresAll, so both lists have to settle first.
         foreach (var quest in quests)
         {
-            quest.RequiresAny.RemoveAll(quest.RequiresAll.Contains);
+            if (quest.RequiresAny.Any(quest.RequiresAll.Contains))
+            {
+                quest.RequiresAny.Clear();
+            }
         }
     }
 
