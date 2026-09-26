@@ -172,8 +172,8 @@ the crocolisk one, so whichever the player worked through first opens it:
 ```
 
 Be careful reading `requiresAny` as a player-facing choice, though. Most entries with more than one
-alternative — 18 of the 26 in the current output — list the Alliance and the Horde version of the same
-quest, which no single character can pick between. The list means "any one of these unlocks it", not
+alternative — 19 of the 34 in the current output — pair an Alliance quest with its Horde counterpart,
+which no single character can pick between. The list means "any one of these unlocks it", not
 "the player gets to decide".
 
 A quest can carry both lists at once, in which case it needs every entry of `requiresAll` and at least
