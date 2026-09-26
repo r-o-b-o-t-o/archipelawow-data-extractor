@@ -693,35 +693,7 @@ public class QuestExtractorService(
 
     private void FillQuestPrerequisites(List<ExtractedQuestData> quests)
     {
-        // Group quests by negative ExclusiveGroup so we can identify "all required" chains.
-        // A negative ExclusiveGroup means every quest in that group must be completed before
-        // the quest pointed to by their NextQuestId becomes available. Members of one group do not
-        // always agree on that target, so it is part of the key: keying on the group alone would pin
-        // the whole group to one member's target and leave the other targets without prerequisites.
-        var negativeExclusiveGroups = quests
-            .Where(q => q.QuestTemplate.QuestTemplateAddon != null)
-            .Where(q =>
-                q.QuestTemplate.QuestTemplateAddon.ExclusiveGroup < 0 &&
-                q.QuestTemplate.QuestTemplateAddon.NextQuestId > 0
-            )
-            .GroupBy(q => (
-                q.QuestTemplate.QuestTemplateAddon.ExclusiveGroup,
-                q.QuestTemplate.QuestTemplateAddon.NextQuestId
-            ));
-
         var questById = quests.ToDictionary(q => q.Id);
-
-        foreach (var group in negativeExclusiveGroups)
-        {
-            if (!questById.TryGetValue(group.Key.NextQuestId, out var targetQuest))
-            {
-                continue;
-            }
-
-            // All members of the group are mandatory prerequisites for the target quest.
-            var known = targetQuest.RequiresAll.ToHashSet();
-            targetQuest.RequiresAll.AddRange(group.Select(q => q.Id).Where(known.Add));
-        }
 
         var questsByNextId = quests
             .Where(q => (q.QuestTemplate.QuestTemplateAddon?.NextQuestId ?? 0) != 0)
@@ -737,6 +709,33 @@ public class QuestExtractorService(
                 var known = quest.RequiresAny.ToHashSet();
                 quest.RequiresAny.AddRange(reqs.Select(other => other.Id).Where(known.Add));
             }
+        }
+
+        // Once rewarded, a previous quest in a negative ExclusiveGroup (a positive PrevQuestId, or a quest
+        // whose NextQuestId points here) can block this quest until the rest of its group is rewarded too,
+        // even when another previous quest is done (Player::SatisfyQuestPreviousQuest). Completing every
+        // such group is always enough, wherever the members' NextQuestId points, so all of them are required
+        // even where another previous quest would do. A negative PrevQuestId is read differently by the core
+        // and stays out of this.
+        var membersByGroup = quests
+            .Where(q => q.QuestTemplate.QuestTemplateAddon?.ExclusiveGroup < 0)
+            .ToLookup(q => q.QuestTemplate.QuestTemplateAddon.ExclusiveGroup, q => q.Id);
+
+        foreach (var quest in quests)
+        {
+            var previousQuests = questsByNextId.GetValueOrDefault(quest.Id, []);
+
+            int prevQuestId = quest.QuestTemplate.QuestTemplateAddon?.PrevQuestId ?? 0;
+            if (prevQuestId > 0 && questById.TryGetValue((uint)prevQuestId, out var prevQuest))
+            {
+                previousQuests = [.. previousQuests, prevQuest];
+            }
+
+            quest.RequiresAll.AddRange(previousQuests
+                .Select(q => q.QuestTemplate.QuestTemplateAddon?.ExclusiveGroup ?? 0)
+                .Where(group => group < 0)
+                .Distinct()
+                .SelectMany(group => membersByGroup[group]));
         }
 
         // A mandatory prerequisite already satisfies every "one of" clause it takes part in. The
