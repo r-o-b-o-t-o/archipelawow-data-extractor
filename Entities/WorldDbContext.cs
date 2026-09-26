@@ -12,6 +12,8 @@ public partial class WorldDbContext : DbContext
     {
     }
 
+    public virtual DbSet<Condition> Conditions { get; set; }
+
     public virtual DbSet<Creature> Creatures { get; set; }
 
     public virtual DbSet<CreatureDefaultTrainer> CreatureDefaultTrainers { get; set; }
@@ -59,6 +61,19 @@ public partial class WorldDbContext : DbContext
         modelBuilder
             .UseCollation("utf8mb4_0900_ai_ci")
             .HasCharSet("utf8mb4");
+
+        modelBuilder.Entity<Condition>(entity =>
+        {
+            entity.HasKey(e => new { e.SourceTypeOrReferenceId, e.SourceGroup, e.SourceEntry, e.SourceId, e.ElseGroup, e.ConditionTypeOrReference, e.ConditionTarget, e.ConditionValue1, e.ConditionValue2, e.ConditionValue3 })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+
+            entity.ToTable("conditions", tb => tb.HasComment("Condition System"));
+
+            entity.Property(e => e.ScriptName)
+                .HasDefaultValueSql("''")
+                .IsFixedLength();
+        });
 
         modelBuilder.Entity<Creature>(entity =>
         {

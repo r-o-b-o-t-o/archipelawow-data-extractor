@@ -85,6 +85,7 @@ public static class ServiceCollectionExtensions
         return services
             .AddScoped<QuestTemplateRepository>()
             .AddScoped<DisablesRepository>()
+            .AddScoped<ConditionsRepository>()
             .AddScoped<TrainerRepository>();
     }
 }

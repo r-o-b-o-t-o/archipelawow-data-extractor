@@ -65,6 +65,7 @@ public class QuestExtractorService(
         ILogger<QuestExtractorService> logger,
         QuestTemplateRepository questsRepo,
         DisablesRepository disablesRepo,
+        ConditionsRepository conditionsRepo,
         WorldDbContext db,
         ChrRacesContainer races,
         ChrClassesContainer classes,
@@ -131,6 +132,15 @@ public class QuestExtractorService(
     private const int QUEST_SORT_NOBLEGARDEN = 374;
     private const int QUEST_SORT_PILGRIMS_BOUNTY = 375;
     private const int QUEST_SORT_LOVE_IS_IN_THE_AIR = 376;
+
+    private const int CONDITION_QUESTREWARDED = 8;
+    private const int CONDITION_QUESTTAKEN = 9;
+    private const int CONDITION_QUEST_NONE = 14;
+    private const int CONDITION_QUEST_COMPLETE = 28;
+    private const int CONDITION_QUESTSTATE = 47;
+
+    /// <summary>Bit of a CONDITION_QUESTSTATE mask for a quest the player has not taken.</summary>
+    private const uint QUEST_STATE_MASK_NONE = 1 << 0;
 
     private const int CHR_RACE_FLAG_NOT_PLAYABLE = 0x1;
 
@@ -237,7 +247,7 @@ public class QuestExtractorService(
             .Select(quest => MapQuestTemplate(quest, questGiverFactions))
             .ToList();
 
-        FillQuestPrerequisites(quests);
+        FillQuestPrerequisites(quests, await conditionsRepo.GetQuestAvailableConditions());
         await FillCreatureZones(quests);
         await FillGameObjectZones(quests);
         await FillPOIZones(quests);
@@ -691,7 +701,7 @@ public class QuestExtractorService(
         }
     }
 
-    private void FillQuestPrerequisites(List<ExtractedQuestData> quests)
+    private void FillQuestPrerequisites(List<ExtractedQuestData> quests, List<Condition> conditions)
     {
         var questById = quests.ToDictionary(q => q.Id);
 
@@ -738,9 +748,11 @@ public class QuestExtractorService(
                 .SelectMany(group => membersByGroup[group]));
         }
 
+        AddConditionPrerequisites(questById, conditions);
+
         // A mandatory prerequisite already satisfies every "one of" clause it takes part in, so the
         // whole clause goes, not just that entry. The PrevQuestId seed lands in RequiresAny before the
-        // groups above fill RequiresAll, so both lists have to settle first.
+        // groups and conditions above fill RequiresAll, so both lists have to settle first.
         foreach (var quest in quests)
         {
             if (quest.RequiresAny.Any(quest.RequiresAll.Contains))
@@ -748,6 +760,66 @@ public class QuestExtractorService(
                 quest.RequiresAny.Clear();
             }
         }
+    }
+
+    /// <summary>
+    /// Adds the quests that quest availability conditions ask for. Rows sharing an ElseGroup must all
+    /// hold and any one group is enough, so what every group asks for is mandatory and the rest is one
+    /// pick per group.
+    /// </summary>
+    private static void AddConditionPrerequisites(Dictionary<uint, ExtractedQuestData> questById, List<Condition> conditions)
+    {
+        foreach (var questConditions in conditions.GroupBy(c => c.SourceEntry))
+        {
+            if (!questById.TryGetValue((uint)questConditions.Key, out var quest))
+            {
+                continue;
+            }
+
+            var groups = questConditions
+                .GroupBy(c => c.ElseGroup)
+                .OrderBy(group => group.Key)
+                .Select(group => group.Select(GetRequiredQuest).Where(id => id != 0).Distinct().Order().ToList())
+                .ToList();
+
+            var shared = groups[0].Where(id => groups.All(group => group.Contains(id))).ToList();
+            var known = quest.RequiresAll.ToHashSet();
+            quest.RequiresAll.AddRange(shared.Where(known.Add));
+
+            // A group asking for nothing beyond the shared quests leaves no choice to make. The output
+            // holds a single "one of" list, so one the quest chain already filled wins. The chain's list
+            // implies the conditions' one everywhere but 13664 "The Black Knight's Fall", which loses its
+            // choice of 13700 or 13701 but is filtered out anyway.
+            var picks = groups.Select(group => group.Except(shared).ToList()).ToList();
+            if (quest.RequiresAny.Count == 0 && picks.All(pick => pick.Count > 0))
+            {
+                quest.RequiresAny.AddRange(picks.SelectMany(pick => pick).Distinct());
+            }
+        }
+    }
+
+    /// <summary>
+    /// The quest a quest availability condition cannot be met without having taken, or 0. The output
+    /// does not tell taken from rewarded, the same as for a negative PrevQuestId.
+    /// </summary>
+    private static uint GetRequiredQuest(Condition condition)
+    {
+        bool? plainMetWhileNotTaken = condition.ConditionTypeOrReference switch
+        {
+            CONDITION_QUESTREWARDED or CONDITION_QUESTTAKEN or CONDITION_QUEST_COMPLETE => false,
+            CONDITION_QUEST_NONE => true,
+            CONDITION_QUESTSTATE => (condition.ConditionValue2 & QUEST_STATE_MASK_NONE) != 0,
+            _ => null,
+        };
+
+        if (plainMetWhileNotTaken == null)
+        {
+            return 0;
+        }
+
+        // NegativeCondition inverts the result.
+        bool metWhileNotTaken = plainMetWhileNotTaken.Value != (condition.NegativeCondition != 0);
+        return metWhileNotTaken ? 0 : condition.ConditionValue1;
     }
 
     private void FillQuestDisplayTitles(List<ExtractedQuestData> quests)

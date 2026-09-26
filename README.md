@@ -146,6 +146,12 @@ otherwise.
 one is enough. Both only ever reference quests that are themselves in the file, so a chain can be
 walked without hitting a dead end.
 
+They are read from `PrevQuestID`, `NextQuestID` and `ExclusiveGroup` in `quest_template_addon`, and from
+the quest availability rows of `conditions` that ask for another quest to be rewarded, taken or complete.
+Condition rows sharing an `ElseGroup` must all hold and any one group is enough, so what every group asks
+for lands in `requiresAll` and the rest in `requiresAny`. "Teron Gorefiend, I am..." (10639) is only tied
+to the three Divination quests before it through `conditions`.
+
 "The Hunt Completed" closes the Ashenvale trophy chain and only opens once all three trophies have been
 handed in, so its three prerequisites land in `requiresAll`:
 
@@ -172,7 +178,7 @@ the crocolisk one, so whichever the player worked through first opens it:
 ```
 
 Be careful reading `requiresAny` as a player-facing choice, though. Most entries with more than one
-alternative — 19 of the 34 in the current output — pair an Alliance quest with its Horde counterpart,
+alternative — 21 of the 40 in the current output — pair an Alliance quest with its Horde counterpart,
 which no single character can pick between. The list means "any one of these unlocks it", not
 "the player gets to decide".
 
@@ -262,7 +268,7 @@ extractor logs every clash it finds and ArchipelaWoW qualifies those names on it
 
 Everything under [`Entities/`](Entities) is scaffolded from the world database and should not be edited
 by hand; the hand-written navigations and keys live in [`EntityExtensions/`](EntityExtensions) as
-partial classes instead. Only the 21 tables the extractor actually reads are generated. From the Visual
+partial classes instead. Only the 22 tables the extractor actually reads are generated. From the Visual
 Studio Package Manager Console:
 
 ```powershell
@@ -270,7 +276,7 @@ Scaffold-DbContext 'Host=localhost;User=root;Password=root;Database=acore_world'
   -Context WorldDbContext -NoOnConfiguring -DataAnnotations -Force `
   -ContextDir Entities -ContextNamespace ArchipelaWoW.DataExtractor.Entities `
   -OutputDir Entities/World -Namespace ArchipelaWoW.DataExtractor.Entities.World `
-  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills
+  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills,conditions
 ```
 
 Two things to know before running it:
