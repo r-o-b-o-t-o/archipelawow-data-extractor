@@ -247,12 +247,13 @@ public class QuestExtractorService(
             .Select(quest => MapQuestTemplate(quest, questGiverFactions))
             .ToList();
 
+        var questDisables = (await disablesRepo.GetQuestDisables()).Select(d => d.Entry).ToHashSet();
+
         FillQuestPrerequisites(quests, await conditionsRepo.GetQuestAvailableConditions());
+        FlagChainBreadcrumbs(quests, questDisables);
         await FillCreatureZones(quests);
         await FillGameObjectZones(quests);
         await FillPOIZones(quests);
-
-        var questDisables = (await disablesRepo.GetQuestDisables()).Select(d => d.Entry).ToHashSet();
 
         quests = [.. quests
             .Where(q => FilterQuest(q, "disables", q => FilterDisables(questDisables, q)))
@@ -820,6 +821,85 @@ public class QuestExtractorService(
         // NegativeCondition inverts the result.
         bool metWhileNotTaken = plainMetWhileNotTaken.Value != (condition.NegativeCondition != 0);
         return metWhileNotTaken ? 0 : condition.ConditionValue1;
+    }
+
+    /// <summary>
+    /// The core refuses a quest while its RewardNextQuest is in the quest log, and for good once that
+    /// follow-up is turned in (Player::SatisfyQuestNextChain). When the follow-up does not require the quest,
+    /// a player who goes straight to it loses the quest just like a breadcrumb, even though
+    /// BreadcrumbForQuestId is unset. A repeatable follow-up no longer counts as done once turned in, so
+    /// the quest comes back and stays a reliable location.
+    /// </summary>
+    private void FlagChainBreadcrumbs(List<ExtractedQuestData> quests, HashSet<uint> disabledQuestIds)
+    {
+        var questById = quests.ToDictionary(q => q.Id);
+
+        foreach (var quest in quests)
+        {
+            if (!quest.IsBreadcrumb &&
+                questById.TryGetValue(quest.QuestTemplate.RewardNextQuest, out var next) &&
+                !IsRepeatable(next) &&
+                CanTakeBoth(quest, next) &&
+                !Requires(next, quest, []))
+            {
+                quest.IsBreadcrumb = true;
+            }
+        }
+
+        // ObjectMgr::LoadQuests marks daily, weekly and monthly quests repeatable on top of the flag.
+        static bool IsRepeatable(ExtractedQuestData quest)
+        {
+            uint specialFlags = quest.SpecialFlags ?? 0;
+            return (quest.Flags & (QUEST_FLAGS_DAILY | QUEST_FLAGS_WEEKLY)) != 0 ||
+                (specialFlags & (QUEST_SPECIAL_FLAGS_REPEATABLE | QUEST_SPECIAL_FLAGS_MONTHLY)) != 0;
+        }
+
+        // Only a quest offered to a character who can take `quest` can cost them `quest`, or open a way
+        // around it.
+        bool CanTakeBoth(ExtractedQuestData quest, ExtractedQuestData other)
+        {
+            return !disabledQuestIds.Contains(other.Id) &&
+                FilterMissingStarters(other) &&
+                Overlaps(quest.Races, other.Races) &&
+                Overlaps(quest.Classes, other.Classes);
+        }
+
+        // Whether a character who can take `quest` has to finish it before reaching `target`. The other
+        // faction's version of a prerequisite is no way around it, so "one of" alternatives the
+        // character is never offered are skipped, and a target left with none is out of their reach.
+        bool Requires(ExtractedQuestData target, ExtractedQuestData quest, HashSet<uint> path)
+        {
+            if (!path.Add(target.Id))
+            {
+                return false;
+            }
+
+            var alternatives = Resolve(target.RequiresAny).Where(other => CanTakeBoth(quest, other));
+            bool result =
+                Resolve(target.RequiresAll).Any(IsOrRequires) ||
+                (target.RequiresAny.Count > 0 && alternatives.All(IsOrRequires));
+
+            path.Remove(target.Id);
+            return result;
+
+            bool IsOrRequires(ExtractedQuestData other) => other.Id == quest.Id || Requires(other, quest, path);
+        }
+
+        IEnumerable<ExtractedQuestData> Resolve(List<uint> ids)
+        {
+            return ids.Where(questById.ContainsKey).Select(id => questById[id]);
+        }
+
+        // Race and class lists hold null for everyone and an empty list for no one.
+        static bool Overlaps(List<int> ids, List<int> otherIds)
+        {
+            if (ids == null || otherIds == null)
+            {
+                return (ids ?? otherIds)?.Count != 0;
+            }
+
+            return ids.Intersect(otherIds).Any();
+        }
     }
 
     private void FillQuestDisplayTitles(List<ExtractedQuestData> quests)

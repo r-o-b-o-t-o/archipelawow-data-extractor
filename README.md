@@ -140,6 +140,13 @@ substitute for the flag.
 `races` and `classes` are `null` when the quest carries no restriction, and a list of DBC ids
 otherwise.
 
+`isBreadcrumb` marks quests the game takes away once the player has started the quest they lead to.
+Besides the quests with `BreadcrumbForQuestId` set, that covers every quest whose `RewardNextQuest` can
+be reached without it by a character who could take both. The core refuses a quest while its
+`RewardNextQuest` is in the quest log, and for good once that follow-up is turned in, so taking "Super
+Reaper 6000" straight from Ziz Fizziks and turning it in loses "Ziz Fizziks". Quests leading into a
+repeatable quest are left alone: a repeatable quest stops blocking anything once it is turned in.
+
 #### Prerequisites
 
 `requiresAll` holds prerequisites that are all needed, `requiresAny` prerequisites of which any single
