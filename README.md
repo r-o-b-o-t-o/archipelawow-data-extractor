@@ -155,6 +155,9 @@ character who could take both quests can reach the other one without it:
 Quests held back by a repeatable quest are left alone, as a repeatable quest stops blocking anything once
 it is turned in. Breadcrumbs are the exception: the core remembers their target was turned in all the same.
 
+A quest that can only be reached through a missable one is lost along with it, so it is marked too: "The
+Engraved Ring" and the two quests after it only open through "Rot Hide Clues".
+
 #### Prerequisites
 
 `requiresAll` holds prerequisites that are all needed, `requiresAny` prerequisites of which any single

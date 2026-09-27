@@ -876,6 +876,7 @@ public class QuestExtractorService(
     /// </list>
     /// In each case the quest is only lost when the player can reach that other quest without it. Getting
     /// to it is taken as being able to turn it in too, as the output knows nothing of quest objectives.
+    /// A quest that can only be reached through a missable one is lost along with it, so it is flagged too.
     /// </summary>
     private void FlagMissableQuests(List<ExtractedQuestData> quests, List<Condition> conditions, HashSet<uint> disabledQuestIds)
     {
@@ -891,6 +892,35 @@ public class QuestExtractorService(
                 .Concat(Resolve([quest.QuestTemplate.QuestTemplateAddon?.BreadcrumbForQuestId ?? 0]));
 
             quest.IsMissable = lockers.Any(locker => CanTakeBoth(quest, locker) && !Requires(locker, quest, []));
+        }
+
+        var dependents = quests
+            .SelectMany(q => q.RequiresAny.Concat(q.RequiresAll).Select(id => (Id: id, Dependent: q)))
+            .ToLookup(pair => pair.Id, pair => pair.Dependent);
+
+        foreach (var missable in quests.Where(q => q.IsMissable).ToList())
+        {
+            var seen = new HashSet<uint>();
+            var pending = new Stack<ExtractedQuestData>(dependents[missable.Id]);
+
+            while (pending.Count > 0)
+            {
+                var dependent = pending.Pop();
+                if (!seen.Add(dependent.Id))
+                {
+                    continue;
+                }
+
+                if (CanTakeBoth(missable, dependent) && Requires(dependent, missable, []))
+                {
+                    dependent.IsMissable = true;
+                }
+
+                foreach (var next in dependents[dependent.Id])
+                {
+                    pending.Push(next);
+                }
+            }
         }
 
         // ObjectMgr::LoadQuests marks daily, weekly and monthly quests repeatable on top of the flag.
