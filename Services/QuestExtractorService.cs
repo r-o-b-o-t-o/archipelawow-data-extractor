@@ -21,7 +21,12 @@ public class ExtractedQuestData
     public List<int> Races { get; set; } = [];
     public List<int> Classes { get; set; } = [];
     public ExtractedArea QuestSortArea { get; set; }
-    public bool IsBreadcrumb { get; set; }
+
+    /// <summary>
+    /// The player can lose the quest for good by taking or turning in another quest first, which makes
+    /// it an unreliable location.
+    /// </summary>
+    public bool IsMissable { get; set; }
 
     /// <summary>
     /// The quest is marked as taking place in a dungeon. Kept in the output rather than filtered out so
@@ -139,8 +144,11 @@ public class QuestExtractorService(
     private const int CONDITION_QUEST_COMPLETE = 28;
     private const int CONDITION_QUESTSTATE = 47;
 
-    /// <summary>Bit of a CONDITION_QUESTSTATE mask for a quest the player has not taken.</summary>
-    private const uint QUEST_STATE_MASK_NONE = 1 << 0;
+    // QuestStatus values; CONDITION_QUESTSTATE masks hold one bit per value.
+    private const int QUEST_STATUS_NONE = 0;
+    private const int QUEST_STATUS_COMPLETE = 1;
+    private const int QUEST_STATUS_INCOMPLETE = 3;
+    private const int QUEST_STATUS_REWARDED = 6;
 
     private const int CHR_RACE_FLAG_NOT_PLAYABLE = 0x1;
 
@@ -249,8 +257,10 @@ public class QuestExtractorService(
 
         var questDisables = (await disablesRepo.GetQuestDisables()).Select(d => d.Entry).ToHashSet();
 
-        FillQuestPrerequisites(quests, await conditionsRepo.GetQuestAvailableConditions());
-        FlagChainBreadcrumbs(quests, questDisables);
+        var questConditions = await conditionsRepo.GetQuestAvailableConditions();
+
+        FillQuestPrerequisites(quests, questConditions);
+        FlagMissableQuests(quests, questConditions, questDisables);
         await FillCreatureZones(quests);
         await FillGameObjectZones(quests);
         await FillPOIZones(quests);
@@ -321,7 +331,7 @@ public class QuestExtractorService(
             QuestInfo = questInfo,
             Flags = q.Flags,
             SpecialFlags = q.QuestTemplateAddon?.SpecialFlags,
-            IsBreadcrumb = (q.QuestTemplateAddon?.BreadcrumbForQuestId ?? 0) != 0,
+            IsMissable = (q.QuestTemplateAddon?.BreadcrumbForQuestId ?? 0) != 0,
             IsDungeon = questInfo?.ID == QUEST_INFO_DUNGEON,
             RequiresAny = (q.QuestTemplateAddon?.PrevQuestId ?? 0) == 0 ? [] : [(uint)Math.Abs(q.QuestTemplateAddon.PrevQuestId)],
             QuestTemplate = q,
@@ -805,45 +815,80 @@ public class QuestExtractorService(
     /// </summary>
     private static uint GetRequiredQuest(Condition condition)
     {
-        bool? plainMetWhileNotTaken = condition.ConditionTypeOrReference switch
-        {
-            CONDITION_QUESTREWARDED or CONDITION_QUESTTAKEN or CONDITION_QUEST_COMPLETE => false,
-            CONDITION_QUEST_NONE => true,
-            CONDITION_QUESTSTATE => (condition.ConditionValue2 & QUEST_STATE_MASK_NONE) != 0,
-            _ => null,
-        };
-
-        if (plainMetWhileNotTaken == null)
-        {
-            return 0;
-        }
-
-        // NegativeCondition inverts the result.
-        bool metWhileNotTaken = plainMetWhileNotTaken.Value != (condition.NegativeCondition != 0);
-        return metWhileNotTaken ? 0 : condition.ConditionValue1;
+        return IsMetInQuestStatus(condition, QUEST_STATUS_NONE) == false ? condition.ConditionValue1 : 0;
     }
 
     /// <summary>
-    /// The core refuses a quest while its RewardNextQuest is in the quest log, and for good once that
-    /// follow-up is turned in (Player::SatisfyQuestNextChain). When the follow-up does not require the quest,
-    /// a player who goes straight to it loses the quest just like a breadcrumb, even though
-    /// BreadcrumbForQuestId is unset. A repeatable follow-up no longer counts as done once turned in, so
-    /// the quest comes back and stays a reliable location.
+    /// Whether a quest availability condition holds while the quest it names is in the given QuestStatus,
+    /// as Condition::Meets checks it, or null for a condition that looks at something else.
     /// </summary>
-    private void FlagChainBreadcrumbs(List<ExtractedQuestData> quests, HashSet<uint> disabledQuestIds)
+    private static bool? IsMetInQuestStatus(Condition condition, int questStatus)
+    {
+        bool? met = condition.ConditionTypeOrReference switch
+        {
+            CONDITION_QUESTREWARDED => questStatus == QUEST_STATUS_REWARDED,
+            CONDITION_QUESTTAKEN => questStatus == QUEST_STATUS_INCOMPLETE,
+            CONDITION_QUEST_NONE => questStatus == QUEST_STATUS_NONE,
+            CONDITION_QUEST_COMPLETE => questStatus == QUEST_STATUS_COMPLETE,
+            CONDITION_QUESTSTATE => (condition.ConditionValue2 & (1u << questStatus)) != 0,
+            _ => null,
+        };
+
+        // NegativeCondition inverts the result.
+        return condition.NegativeCondition != 0 ? !met : met;
+    }
+
+    /// <summary>
+    /// For each quest, the quests whose turn-in makes every group of its availability conditions fail
+    /// for good, such as "Bitter Rivals" (310) for "Guarded Thunderbrew Barrel" (403), which is only
+    /// offered while 310 is complete and not yet turned in.
+    /// </summary>
+    private static ILookup<uint, uint> GetConditionLockers(List<Condition> conditions)
+    {
+        var lockers = new List<(uint QuestId, uint LockerId)>();
+
+        foreach (var questConditions in conditions.GroupBy(c => (uint)c.SourceEntry))
+        {
+            var groups = questConditions
+                .GroupBy(c => c.ElseGroup)
+                .Select(group => group
+                    .Where(c => IsMetInQuestStatus(c, QUEST_STATUS_REWARDED) == false)
+                    .Select(c => c.ConditionValue1)
+                    .ToHashSet())
+                .ToList();
+
+            lockers.AddRange(groups[0]
+                .Where(id => groups.All(group => group.Contains(id)))
+                .Select(id => (questConditions.Key, id)));
+        }
+
+        return lockers.ToLookup(pair => pair.QuestId, pair => pair.LockerId);
+    }
+
+    /// <summary>
+    /// Flags the quests a player can lose for good by getting to another quest first. Breadcrumbs are
+    /// flagged from BreadcrumbForQuestId already; two more kinds of quest are taken away the same way:
+    /// <list type="bullet">
+    /// <item>The core refuses a quest while its RewardNextQuest is in the quest log, and for good once
+    /// that follow-up is turned in (Player::SatisfyQuestNextChain).</item>
+    /// <item>Availability conditions can stop holding for good once another quest is turned in.</item>
+    /// </list>
+    /// Either way the quest is only lost when the player can reach that other quest without it. Getting
+    /// to it is taken as being able to turn it in too, as the output knows nothing of quest objectives.
+    /// A repeatable quest no longer counts as done once turned in, so what it held back comes back.
+    /// </summary>
+    private void FlagMissableQuests(List<ExtractedQuestData> quests, List<Condition> conditions, HashSet<uint> disabledQuestIds)
     {
         var questById = quests.ToDictionary(q => q.Id);
+        var conditionLockers = GetConditionLockers(conditions);
 
-        foreach (var quest in quests)
+        foreach (var quest in quests.Where(q => !q.IsMissable))
         {
-            if (!quest.IsBreadcrumb &&
-                questById.TryGetValue(quest.QuestTemplate.RewardNextQuest, out var next) &&
-                !IsRepeatable(next) &&
-                CanTakeBoth(quest, next) &&
-                !Requires(next, quest, []))
-            {
-                quest.IsBreadcrumb = true;
-            }
+            var lockers = conditionLockers[quest.Id].Append(quest.QuestTemplate.RewardNextQuest);
+            quest.IsMissable = Resolve(lockers).Any(locker =>
+                !IsRepeatable(locker) &&
+                CanTakeBoth(quest, locker) &&
+                !Requires(locker, quest, []));
         }
 
         // ObjectMgr::LoadQuests marks daily, weekly and monthly quests repeatable on top of the flag.
@@ -885,7 +930,7 @@ public class QuestExtractorService(
             bool IsOrRequires(ExtractedQuestData other) => other.Id == quest.Id || Requires(other, quest, path);
         }
 
-        IEnumerable<ExtractedQuestData> Resolve(List<uint> ids)
+        IEnumerable<ExtractedQuestData> Resolve(IEnumerable<uint> ids)
         {
             return ids.Where(questById.ContainsKey).Select(id => questById[id]);
         }

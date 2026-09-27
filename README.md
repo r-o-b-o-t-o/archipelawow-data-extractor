@@ -127,7 +127,7 @@ substitute for the flag.
   "races": [1, 3, 4, 7, 11],
   "classes": null,
   "questSortArea": { "id": 12, "name": "Elwynn Forest" },
-  "isBreadcrumb": false,
+  "isMissable": false,
   "isDungeon": false,
   "requiresAny": [],
   "requiresAll": [],
@@ -140,12 +140,19 @@ substitute for the flag.
 `races` and `classes` are `null` when the quest carries no restriction, and a list of DBC ids
 otherwise.
 
-`isBreadcrumb` marks quests the game takes away once the player has started the quest they lead to.
-Besides the quests with `BreadcrumbForQuestId` set, that covers every quest whose `RewardNextQuest` can
-be reached without it by a character who could take both. The core refuses a quest while its
-`RewardNextQuest` is in the quest log, and for good once that follow-up is turned in, so taking "Super
-Reaper 6000" straight from Ziz Fizziks and turning it in loses "Ziz Fizziks". Quests leading into a
-repeatable quest are left alone: a repeatable quest stops blocking anything once it is turned in.
+`isMissable` marks quests a player can lose for good by getting to another quest first, which makes them
+unreliable locations. Every breadcrumb set with `BreadcrumbForQuestId` is marked, since the core takes it
+away once its target is started. Two more kinds of quest are marked when a character who could take both
+can reach the other quest without them:
+
+- quests whose `RewardNextQuest` is taken first: the core refuses a quest while that follow-up is in the
+  quest log, and for good once it is turned in, so taking "Super Reaper 6000" straight from Ziz Fizziks
+  and turning it in loses "Ziz Fizziks"
+- quests whose `conditions` stop holding once another quest is turned in, such as "Guarded Thunderbrew
+  Barrel", only offered while "Bitter Rivals" is complete and not yet turned in
+
+Quests held back by a repeatable quest are left alone: a repeatable quest stops blocking anything once it
+is turned in.
 
 #### Prerequisites
 
