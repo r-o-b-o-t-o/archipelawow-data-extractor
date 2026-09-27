@@ -331,7 +331,6 @@ public class QuestExtractorService(
             QuestInfo = questInfo,
             Flags = q.Flags,
             SpecialFlags = q.QuestTemplateAddon?.SpecialFlags,
-            IsMissable = (q.QuestTemplateAddon?.BreadcrumbForQuestId ?? 0) != 0,
             IsDungeon = questInfo?.ID == QUEST_INFO_DUNGEON,
             RequiresAny = (q.QuestTemplateAddon?.PrevQuestId ?? 0) == 0 ? [] : [(uint)Math.Abs(q.QuestTemplateAddon.PrevQuestId)],
             QuestTemplate = q,
@@ -866,29 +865,32 @@ public class QuestExtractorService(
     }
 
     /// <summary>
-    /// Flags the quests a player can lose for good by getting to another quest first. Breadcrumbs are
-    /// flagged from BreadcrumbForQuestId already; two more kinds of quest are taken away the same way:
+    /// Flags the quests a player can lose for good by getting to another quest first. The core takes
+    /// three kinds of quest away that way:
     /// <list type="bullet">
-    /// <item>The core refuses a quest while its RewardNextQuest is in the quest log, and for good once
-    /// that follow-up is turned in (Player::SatisfyQuestNextChain).</item>
-    /// <item>Availability conditions can stop holding for good once another quest is turned in.</item>
+    /// <item>A breadcrumb, once its BreadcrumbForQuestId target is taken or turned in
+    /// (Player::SatisfyQuestBreadcrumb).</item>
+    /// <item>A quest whose RewardNextQuest is in the quest log, and for good once that follow-up is
+    /// turned in (Player::SatisfyQuestNextChain).</item>
+    /// <item>A quest whose availability conditions stop holding once another quest is turned in.</item>
     /// </list>
-    /// Either way the quest is only lost when the player can reach that other quest without it. Getting
+    /// In each case the quest is only lost when the player can reach that other quest without it. Getting
     /// to it is taken as being able to turn it in too, as the output knows nothing of quest objectives.
-    /// A repeatable quest no longer counts as done once turned in, so what it held back comes back.
     /// </summary>
     private void FlagMissableQuests(List<ExtractedQuestData> quests, List<Condition> conditions, HashSet<uint> disabledQuestIds)
     {
         var questById = quests.ToDictionary(q => q.Id);
         var conditionLockers = GetConditionLockers(conditions);
 
-        foreach (var quest in quests.Where(q => !q.IsMissable))
+        foreach (var quest in quests)
         {
-            var lockers = conditionLockers[quest.Id].Append(quest.QuestTemplate.RewardNextQuest);
-            quest.IsMissable = Resolve(lockers).Any(locker =>
-                !IsRepeatable(locker) &&
-                CanTakeBoth(quest, locker) &&
-                !Requires(locker, quest, []));
+            // A repeatable quest no longer counts as done once turned in, so what it held back comes back.
+            // A breadcrumb goes by its target's reward instead, which the core keeps for repeatable quests.
+            var lockers = Resolve(conditionLockers[quest.Id].Append(quest.QuestTemplate.RewardNextQuest))
+                .Where(locker => !IsRepeatable(locker))
+                .Concat(Resolve([quest.QuestTemplate.QuestTemplateAddon?.BreadcrumbForQuestId ?? 0]));
+
+            quest.IsMissable = lockers.Any(locker => CanTakeBoth(quest, locker) && !Requires(locker, quest, []));
         }
 
         // ObjectMgr::LoadQuests marks daily, weekly and monthly quests repeatable on top of the flag.

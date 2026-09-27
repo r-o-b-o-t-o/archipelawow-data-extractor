@@ -141,18 +141,19 @@ substitute for the flag.
 otherwise.
 
 `isMissable` marks quests a player can lose for good by getting to another quest first, which makes them
-unreliable locations. Every breadcrumb set with `BreadcrumbForQuestId` is marked, since the core takes it
-away once its target is started. Two more kinds of quest are marked when a character who could take both
-can reach the other quest without them:
+unreliable locations. The core takes a quest away in three ways, each of which only counts when a
+character who could take both quests can reach the other one without it:
 
+- breadcrumbs, set with `BreadcrumbForQuestId`, once their target is started. "The Hermit" is not marked,
+  as "Supplies from Darkshire" cannot be taken without it
 - quests whose `RewardNextQuest` is taken first: the core refuses a quest while that follow-up is in the
   quest log, and for good once it is turned in, so taking "Super Reaper 6000" straight from Ziz Fizziks
   and turning it in loses "Ziz Fizziks"
 - quests whose `conditions` stop holding once another quest is turned in, such as "Guarded Thunderbrew
   Barrel", only offered while "Bitter Rivals" is complete and not yet turned in
 
-Quests held back by a repeatable quest are left alone: a repeatable quest stops blocking anything once it
-is turned in.
+Quests held back by a repeatable quest are left alone, as a repeatable quest stops blocking anything once
+it is turned in. Breadcrumbs are the exception: the core remembers their target was turned in all the same.
 
 #### Prerequisites
 
