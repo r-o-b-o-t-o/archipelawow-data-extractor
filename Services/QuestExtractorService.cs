@@ -239,6 +239,29 @@ public class QuestExtractorService(
         14079, 14081, 14082, 14083, 14084, 14085, 14086, 14087, 14088, 14089,
     ];
 
+    // Quests no player can get, or only during a window that never comes back.
+    private static readonly HashSet<uint> UNOBTAINABLE_QUESTS = [
+        // "Trek to Ashenvale": Sentinel Selarin only offers it for a minute and a half after "Escape
+        // Through Force" or "Escape Through Stealth" is turned in, and nothing brings her back
+        990,
+        // "Again Into the Great Ossuary": a shaman copy of the paladin charger quest, left without text or
+        // objectives
+        7669,
+        // "Into the Breach": only offered during The Burning Crusade pre-patch
+        10259,
+        // "Let's Get Out of Here": the Father Kamaros who offers it never spawns, players get "I'm Not
+        // Dead Yet!" instead
+        13481, 13482,
+    ];
+
+    // Quests that only give back what a player lost or missed earlier in a chain.
+    private static readonly HashSet<uint> FAILSAFE_QUESTS = [
+        // "Another Power Source?", "Replacement Phial", "Signal for Pickup"
+        841, 3375, 3483,
+        // "Call of Water": summons the Minor Manifestation of Water again
+        1103,
+    ];
+
     /// <summary>Zone ids already reported as missing from AreaTable.dbc, so each is only logged once.</summary>
     private readonly HashSet<int> unknownZoneIds = [];
 
@@ -284,7 +307,9 @@ public class QuestExtractorService(
             .Where(q => FilterQuest(q, "exclusive group", FilterExclusiveGroups))
             .Where(q => FilterQuest(q, "collector's edition", FilterCollectorsEdition))
             .Where(q => FilterQuest(q, "cloth donation", FilterClothDonation))
-            .Where(q => FilterQuest(q, "learn to ride", FilterLearnToRide))];
+            .Where(q => FilterQuest(q, "learn to ride", FilterLearnToRide))
+            .Where(q => FilterQuest(q, "unobtainable", FilterUnobtainable))
+            .Where(q => FilterQuest(q, "failsafe", FilterFailsafe))];
 
         FilterUnavailablePrerequisites(quests);
         FillQuestDisplayTitles(quests);
@@ -659,6 +684,16 @@ public class QuestExtractorService(
     private bool FilterLearnToRide(ExtractedQuestData q)
     {
         return !LEARN_TO_RIDE_QUESTS.Contains(q.Id);
+    }
+
+    private bool FilterUnobtainable(ExtractedQuestData q)
+    {
+        return !UNOBTAINABLE_QUESTS.Contains(q.Id);
+    }
+
+    private bool FilterFailsafe(ExtractedQuestData q)
+    {
+        return !FAILSAFE_QUESTS.Contains(q.Id);
     }
 
     private void FilterUnavailablePrerequisites(List<ExtractedQuestData> quests)
