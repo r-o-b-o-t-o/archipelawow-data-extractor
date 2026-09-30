@@ -119,6 +119,14 @@ public class QuestExtractorService(
     private const int QUEST_SPECIAL_FLAGS_DF_QUEST = 8;
     private const int QUEST_SPECIAL_FLAGS_MONTHLY = 16;
 
+    // Stored in item_template.FlagsExtra
+    private const uint ITEM_FLAG2_FACTION_HORDE = 1;
+    private const uint ITEM_FLAG2_FACTION_ALLIANCE = 2;
+
+    // FactionTemplate.FactionGroup bits
+    private const int FACTION_MASK_ALLIANCE = 2;
+    private const int FACTION_MASK_HORDE = 4;
+
     private const int QUEST_INFO_GROUP = 1;
     private const int QUEST_INFO_LIFE = 21;
     private const int QUEST_INFO_PVP = 41;
@@ -431,6 +439,13 @@ public class QuestExtractorService(
             }
         }
 
+        int itemFactionGroup = GetStarterItemsFactionGroup(q);
+        if (itemFactionGroup != 0)
+        {
+            result ??= [.. playableRaces];
+            result.RemoveAll(race => GetRaceFaction(race) is { } faction && (faction.FactionGroup & itemFactionGroup) == 0);
+        }
+
         // A list holding every playable race says no more than no restriction at all.
         return result?.Count == playableRaces.Count ? null : result;
 
@@ -457,6 +472,26 @@ public class QuestExtractorService(
             return questGivers.Count == 0 || questGivers.Any(npc =>
                 IsFriendlyTo(npc, raceFaction) || !IsHostileTo(npc, raceFaction));
         }
+    }
+
+    /// <summary>
+    /// The faction group a quest started only by items is limited to, when they are all flagged for the
+    /// same faction: the core does not let the other one loot them. 0 when there is no such limit.
+    /// </summary>
+    private static int GetStarterItemsFactionGroup(QuestTemplate q)
+    {
+        if (q.CreatureStarters.Count > 0 || q.GameObjectStarters.Count > 0 || q.ItemTemplateStarters.Count == 0)
+        {
+            return 0;
+        }
+
+        var groups = q.ItemTemplateStarters
+            .Select(item => (item.FlagsExtra & ITEM_FLAG2_FACTION_HORDE) != 0 ? FACTION_MASK_HORDE
+                : (item.FlagsExtra & ITEM_FLAG2_FACTION_ALLIANCE) != 0 ? FACTION_MASK_ALLIANCE
+                : 0)
+            .Distinct()
+            .ToList();
+        return groups.Count == 1 ? groups[0] : 0;
     }
 
     private FactionTemplate GetRaceFaction(ChrRaces race)
