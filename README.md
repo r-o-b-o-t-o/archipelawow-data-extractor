@@ -102,9 +102,9 @@ on any character the run allows. Quests are dropped when they are:
 - part of a positive `ExclusiveGroup`, where completing one quest locks the others out — any of them
   could have been a location the player needed
 - one of a few hardcoded sets: collector's edition rewards, the reputation cloth donation turn-ins, the
-  riding-skill quests, quests no player can get (or only during a window that never comes back), and
-  failsafe quests that only give back what a player lost or missed earlier in a chain, such as
-  "Replacement Phial"
+  riding-skill quests, quests whose giver only a profession brings out, quests no player can get (or
+  only during a window that never comes back), and failsafe quests that only give back what a player
+  lost or missed earlier in a chain, such as "Replacement Phial"
 
 Finally, quests whose prerequisites did not survive the filters are dropped too, repeatedly, until the
 set is stable.

@@ -239,6 +239,13 @@ public class QuestExtractorService(
         14079, 14081, 14082, 14083, 14084, 14085, 14086, 14087, 14088, 14089,
     ];
 
+    // Quests whose giver only appears through a profession, which the quest itself does not require.
+    private static readonly HashSet<uint> PROFESSION_GIVER_QUESTS = [
+        // "Finkle Einhorn, At Your Service!": Finkle only comes out of The Beast once it is skinned, which
+        // takes 310 Skinning
+        5047,
+    ];
+
     // Quests no player can get, or only during a window that never comes back.
     private static readonly HashSet<uint> UNOBTAINABLE_QUESTS = [
         // "Trek to Ashenvale": Sentinel Selarin only offers it for a minute and a half after "Escape
@@ -651,7 +658,7 @@ public class QuestExtractorService(
     private bool FilterProfession(ExtractedQuestData q)
     {
         var addon = q.QuestTemplate.QuestTemplateAddon;
-        return addon == null || addon.RequiredSkillId == 0;
+        return (addon == null || addon.RequiredSkillId == 0) && !PROFESSION_GIVER_QUESTS.Contains(q.Id);
     }
 
     private bool FilterDeprecatedName(ExtractedQuestData q)
