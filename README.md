@@ -130,6 +130,7 @@ substitute for the flag.
   "races": [1, 3, 4, 7, 11],
   "classes": null,
   "questSortArea": { "id": 12, "name": "Elwynn Forest" },
+  "questSort": null,
   "isMissable": false,
   "isDungeon": false,
   "requiresAny": [],
@@ -142,6 +143,10 @@ substitute for the flag.
 
 `races` and `classes` are `null` when the quest carries no restriction, and a list of DBC ids
 otherwise.
+
+`questSortArea` is the zone the quest log files the quest under. Quests filed under a category
+instead, such as a class, carry it in `questSort`, as in `{ "id": 161, "name": "Mage" }`, where `id` is a
+`QuestSort.dbc` id. At most one of the two is set.
 
 `isMissable` marks quests a player can lose for good by getting to another quest first, which makes them
 unreliable locations. The core takes a quest away in three ways, each of which only counts when a

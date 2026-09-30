@@ -23,6 +23,12 @@ public class ExtractedQuestData
     public ExtractedArea QuestSortArea { get; set; }
 
     /// <summary>
+    /// The category the quest log files the quest under when it is not a zone, such as a class. At most
+    /// one of this and <see cref="QuestSortArea"/> is set.
+    /// </summary>
+    public ExtractedQuestSort QuestSort { get; set; }
+
+    /// <summary>
     /// The player can lose the quest for good by taking or turning in another quest first, which makes
     /// it an unreliable location.
     /// </summary>
@@ -40,9 +46,8 @@ public class ExtractedQuestData
     public List<ExtractedArea> EndZones { get; set; } = [];
     public List<ExtractedArea> ObjectiveZones { get; set; } = [];
 
-    // Only the filters below read these; archipelawow's QuestModel ignores them, so they are kept out
-    // of the output rather than adding a few hundred KB of dead weight to quests.json.
-    [JsonIgnore] public QuestSort QuestSort { get; set; }
+    // Only the extraction itself reads these; archipelawow's QuestModel ignores them, so they are kept
+    // out of the output rather than adding a few hundred KB of dead weight to quests.json.
     [JsonIgnore] public QuestInfo QuestInfo { get; set; }
     [JsonIgnore] public uint Flags { get; set; }
     [JsonIgnore] public uint? SpecialFlags { get; set; }
@@ -62,6 +67,23 @@ public class ExtractedArea
             {
                 Id = row.ID,
                 Name = row.AreaNameLang,
+            };
+    }
+}
+
+public class ExtractedQuestSort
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+
+    public static ExtractedQuestSort FromQuestSort(QuestSort row)
+    {
+        return row == null
+            ? null
+            : new ExtractedQuestSort()
+            {
+                Id = row.ID,
+                Name = row.SortNameLang,
             };
     }
 }
@@ -521,7 +543,7 @@ public class QuestExtractorService(
         return [.. classes.Where(c => HasBit(allowableClasses, c.ID))];
     }
 
-    private QuestSort GetQuestSort(QuestTemplate q)
+    private ExtractedQuestSort GetQuestSort(QuestTemplate q)
     {
         if (q.QuestSortId > 0)
         {
@@ -529,7 +551,7 @@ public class QuestExtractorService(
         }
 
         // Negated rather than Math.Abs, which overflows on short.MinValue.
-        return questSorts.Get(-q.QuestSortId);
+        return ExtractedQuestSort.FromQuestSort(questSorts.Get(-q.QuestSortId));
     }
 
     private ExtractedArea GetQuestSortArea(QuestTemplate q)
@@ -606,7 +628,7 @@ public class QuestExtractorService(
 
     private bool FilterQuestSort(ExtractedQuestData q)
     {
-        return q.QuestSort == null || !EXCLUDED_QUEST_SORTS.Contains(q.QuestSort.ID);
+        return q.QuestSort == null || !EXCLUDED_QUEST_SORTS.Contains(q.QuestSort.Id);
     }
 
     private bool FilterQuestInfo(ExtractedQuestData q)
