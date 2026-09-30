@@ -271,12 +271,18 @@ public class QuestExtractorService(
 
     // Quests no player can get, or only during a window that never comes back.
     private static readonly HashSet<uint> UNOBTAINABLE_QUESTS = [
+        // "The Black Box": started by the Corroded Black Box, which Zaricotl no longer drops and nothing
+        // else gives out
+        708,
         // "Trek to Ashenvale": Sentinel Selarin only offers it for a minute and a half after "Escape
         // Through Force" or "Escape Through Stealth" is turned in, and nothing brings her back
         990,
         // "Again Into the Great Ossuary": a shaman copy of the paladin charger quest, left without text or
         // objectives
         7669,
+        // "Host of the Hidden City": cut before The Burning Crusade launched, and nothing gives out the
+        // Luanga's Orders that start them
+        9984, 9985,
         // "Into the Breach": only offered during The Burning Crusade pre-patch
         10259,
         // "Let's Get Out of Here": the Father Kamaros who offers it never spawns, players get "I'm Not
