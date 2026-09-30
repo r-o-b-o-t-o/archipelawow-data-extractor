@@ -144,6 +144,10 @@ substitute for the flag.
 `races` and `classes` are `null` when the quest carries no restriction, and a list of DBC ids
 otherwise.
 
+`suggestedGroupSize` is `null` on quests meant for one player. A quest the quest log tags as Group
+without saying how many players it wants, such as "Wanted: Gath'Ilzogg", counts as 2, the smallest
+group.
+
 `questSortArea` is the zone the quest log files the quest under. Quests filed under a category
 instead, such as a class, carry it in `questSort`, as in `{ "id": 161, "name": "Mage" }`, where `id` is a
 `QuestSort.dbc` id. At most one of the two is set.

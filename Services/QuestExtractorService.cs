@@ -119,6 +119,7 @@ public class QuestExtractorService(
     private const int QUEST_SPECIAL_FLAGS_DF_QUEST = 8;
     private const int QUEST_SPECIAL_FLAGS_MONTHLY = 16;
 
+    private const int QUEST_INFO_GROUP = 1;
     private const int QUEST_INFO_LIFE = 21;
     private const int QUEST_INFO_PVP = 41;
     private const int QUEST_INFO_RAID = 62;
@@ -377,7 +378,7 @@ public class QuestExtractorService(
             // QuestLevel is the reward tier and carries -1 as its unset sentinel, so it is not written
             // out; it only seeds the level a player can reasonably take the quest at.
             RecommendedLevel = q.QuestLevel > 0 ? (short)Math.Max(Math.Max(q.QuestLevel - 2, 1), q.MinLevel) : null,
-            SuggestedGroupSize = q.SuggestedGroupNum > 1 ? q.SuggestedGroupNum : null,
+            SuggestedGroupSize = GetSuggestedGroupSize(q, questInfo),
             Races = GetAllowableRaces(q, questGiverFactions)?.Select(r => r.ID).ToList(),
             Classes = GetAllowableClasses(q)?.Select(c => c.ID).ToList(),
             QuestSort = GetQuestSort(q),
@@ -567,6 +568,20 @@ public class QuestExtractorService(
     private QuestInfo GetQuestInfo(QuestTemplate q)
     {
         return q.QuestInfoId > 0 ? questInfos.Get(q.QuestInfoId) : null;
+    }
+
+    /// <summary>
+    /// The quest log tags a quest as Group from its quest info alone, and some leave SuggestedGroupNum
+    /// unset, such as "Wanted: Gath'Ilzogg"; those count as the smallest group.
+    /// </summary>
+    private static byte? GetSuggestedGroupSize(QuestTemplate q, QuestInfo questInfo)
+    {
+        if (q.SuggestedGroupNum > 1)
+        {
+            return q.SuggestedGroupNum;
+        }
+
+        return questInfo?.ID == QUEST_INFO_GROUP ? 2 : null;
     }
 
     private bool FilterQuest(ExtractedQuestData q, string reason, Func<ExtractedQuestData, bool> fn)
