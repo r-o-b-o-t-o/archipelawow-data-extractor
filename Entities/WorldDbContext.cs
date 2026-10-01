@@ -38,6 +38,8 @@ public partial class WorldDbContext : DbContext
 
     public virtual DbSet<GameobjectTemplate> GameobjectTemplates { get; set; }
 
+    public virtual DbSet<GossipMenuOption> GossipMenuOptions { get; set; }
+
     public virtual DbSet<ItemTemplate> ItemTemplates { get; set; }
 
     public virtual DbSet<PlayercreateinfoSkill> PlayercreateinfoSkills { get; set; }
@@ -247,6 +249,13 @@ public partial class WorldDbContext : DbContext
             entity.Property(e => e.ScriptName).HasDefaultValueSql("''");
             entity.Property(e => e.Size).HasDefaultValueSql("'1'");
             entity.Property(e => e.Unk1).HasDefaultValueSql("''");
+        });
+
+        modelBuilder.Entity<GossipMenuOption>(entity =>
+        {
+            entity.HasKey(e => new { e.MenuId, e.OptionId })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
         });
 
         modelBuilder.Entity<ItemTemplate>(entity =>

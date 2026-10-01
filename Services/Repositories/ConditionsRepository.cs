@@ -8,6 +8,7 @@ public class ConditionsRepository(WorldDbContext db)
 {
     public enum SourceType : int
     {
+        CONDITION_SOURCE_TYPE_GOSSIP_MENU_OPTION = 15,
         CONDITION_SOURCE_TYPE_QUEST_AVAILABLE = 19,
     }
 

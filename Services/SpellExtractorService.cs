@@ -37,6 +37,16 @@ public class ExtractedSpellData
     /// a warrior with Thrown, a troll hunter with Bows -- is left out.
     /// </summary>
     public Dictionary<int, int> ClassRaces { get; set; } = [];
+
+    /// <summary>
+    /// For the entries a weapon master or a mount trainer sells, the zones those trainers stand in, each
+    /// with the races they teach there -- 0 for every race, as in <see cref="RaceMask"/>. Unlike a class
+    /// trainer, which every starting zone has for each class it creates, a weapon master only stands in
+    /// the capital cities and Eversong Woods, and a racial riding trainer only teaches its own race, the
+    /// orcs' standing in Orgrimmar. A slot has to reach one of these zones to buy the spell. A trainer
+    /// whose faction is hostile to a race, as Thunder Bluff's are to the Alliance, does not teach it.
+    /// </summary>
+    public Dictionary<int, int> TrainerZones { get; set; } = [];
     public int ReqLevel { get; set; }
     public int ReqSkillRank { get; set; }
 
@@ -63,7 +73,8 @@ public class SpellExtractorService(
         SkillLineContainer skillLines,
         SkillLineAbilityContainer skillLineAbilities,
         SkillRaceClassInfoContainer skillRaceClassInfos,
-        FactionTemplateContainer factionTemplates
+        FactionTemplateContainer factionTemplates,
+        ChrRacesContainer races
     )
 {
     private readonly JsonSerializerOptions jsonOptions = new()
@@ -170,6 +181,7 @@ public class SpellExtractorService(
         var createSkills = await trainersRepo.GetCreateSkills();
         var trainerExpansions = await CollectTrainerExpansions();
         var trainerTeams = await CollectTrainerTeams();
+        var trainerZones = await CollectTrainerZones();
 
         // Starters are worked out first and then kept out of the trainer sweep. A realm running the
         // module has its archipelawow_world_007 update applied, which puts the starting abilities on
@@ -180,14 +192,15 @@ public class SpellExtractorService(
 
         List<ExtractedSpellData> collected =
         [
-            .. CollectTrainerSpells(trainers, higherRanks, trainerTeams, trainerExpansions)
+            .. CollectTrainerSpells(trainers, higherRanks, trainerTeams, trainerExpansions, trainerZones)
                 .Where(spell => !starterKeys.Contains((spell.ClassId, spell.Id))),
-            .. CollectWeaponSkills(trainers, createSkills, trainerExpansions),
+            .. CollectWeaponSkills(trainers, createSkills, trainerExpansions, trainerZones),
             .. starters,
         ];
 
         collected = Deduplicate(collected);
         ReportDuplicateNames(collected);
+        WarnOnTrainerSpellsWithoutZones(collected);
 
         string outFile = Path.Combine(outDir, "spells.json");
         await File.WriteAllTextAsync(outFile, JsonSerializer.Serialize(collected, jsonOptions));
@@ -311,6 +324,54 @@ public class SpellExtractorService(
     }
 
     /// <summary>
+    /// Trainer id to the zones its creatures stand in, each with the mask of the races it teaches there. A
+    /// creature that teaches nobody leaves its zone out rather than adding an empty mask to it.
+    /// </summary>
+    private async Task<Dictionary<uint, Dictionary<int, int>>> CollectTrainerZones()
+    {
+        var spawns = await trainersRepo.GetTrainerSpawns();
+        var optionRaceMasks = await trainersRepo.GetTrainerOptionRaceMasks();
+
+        Dictionary<uint, Dictionary<int, int>> trainerZones = [];
+        foreach (TrainerSpawn spawn in spawns)
+        {
+            int raceMask = RacesTrainedBy(spawn, optionRaceMasks);
+            if (raceMask == 0)
+            {
+                continue;
+            }
+
+            if (!trainerZones.TryGetValue(spawn.TrainerId, out var zones))
+            {
+                trainerZones[spawn.TrainerId] = zones = [];
+            }
+            zones[spawn.ZoneId] = zones.GetValueOrDefault(spawn.ZoneId) | raceMask;
+        }
+        return trainerZones;
+    }
+
+    /// <summary>
+    /// The playable races a trainer creature will teach: the ones its trainer option is shown to, less the
+    /// ones its faction is hostile to.
+    /// </summary>
+    private int RacesTrainedBy(TrainerSpawn spawn, Dictionary<uint, int> optionRaceMasks)
+    {
+        int optionRaces = optionRaceMasks.GetValueOrDefault(spawn.GossipMenuId, ALL_RACES_MASK);
+        FactionTemplate trainerFaction = factionTemplates.Get(spawn.Faction);
+
+        int raceMask = 0;
+        foreach (int raceId in PLAYABLE_RACE_IDS.Where(raceId => (optionRaces & RaceBit(raceId)) != 0))
+        {
+            FactionTemplate raceFaction = factionTemplates.Get(races.Get(raceId)?.FactionID ?? 0);
+            if (trainerFaction == null || raceFaction == null || FactionRelations.WillTalkTo(trainerFaction, raceFaction))
+            {
+                raceMask |= RaceBit(raceId);
+            }
+        }
+        return raceMask;
+    }
+
+    /// <summary>
     /// Every first-rank spell a class trainer teaches, plus the riding ranks the mount trainers do.
     ///
     /// Only first ranks become checks: shuffling every rank would multiply the pool several times over
@@ -318,7 +379,8 @@ public class SpellExtractorService(
     /// as usual.
     /// </summary>
     private List<ExtractedSpellData> CollectTrainerSpells(List<Trainer> trainers, HashSet<uint> higherRanks,
-        Dictionary<uint, int> trainerTeams, Dictionary<uint, int> trainerExpansions)
+        Dictionary<uint, int> trainerTeams, Dictionary<uint, int> trainerExpansions,
+        Dictionary<uint, Dictionary<int, int>> trainerZones)
     {
         List<ExtractedSpellData> collected = [];
 
@@ -352,6 +414,7 @@ public class SpellExtractorService(
                     {
                         Id = spellId,
                         Name = spell.NameLang,
+                        TrainerZones = new(trainerZones.GetValueOrDefault(trainer.Id, [])),
                         ReqLevel = trainerSpell.ReqLevel,
                         ReqSkillRank = (int)trainerSpell.ReqSkillRank,
                         TaughtSpells = TaughtSpells(spell),
@@ -413,7 +476,8 @@ public class SpellExtractorService(
     /// race and class pairs that can never buy it are simply left out of the map.
     /// </summary>
     private List<ExtractedSpellData> CollectWeaponSkills(List<Trainer> trainers,
-        List<PlayercreateinfoSkill> createSkills, Dictionary<uint, int> trainerExpansions)
+        List<PlayercreateinfoSkill> createSkills, Dictionary<uint, int> trainerExpansions,
+        Dictionary<uint, Dictionary<int, int>> trainerZones)
     {
         List<ExtractedSpellData> collected = [];
 
@@ -448,6 +512,7 @@ public class SpellExtractorService(
                     Id = spellId,
                     Name = spell.NameLang,
                     ClassRaces = classRaces,
+                    TrainerZones = new(trainerZones.GetValueOrDefault(trainer.Id, [])),
                     ReqLevel = trainerSpell.ReqLevel,
                     ReqSkillRank = (int)trainerSpell.ReqSkillRank,
                     TaughtSpells = TaughtSpells(spell),
@@ -667,7 +732,7 @@ public class SpellExtractorService(
     /// One entry per class and spell.
     ///
     /// Keeps the lowest level any trainer asks for, the earliest expansion any of them is reachable in,
-    /// and the teams of every trainer that teaches it.
+    /// and the teams and zones of every trainer that teaches it.
     /// </summary>
     private static List<ExtractedSpellData> Deduplicate(List<ExtractedSpellData> collected)
     {
@@ -686,10 +751,19 @@ public class SpellExtractorService(
             existing.ReqSkillRank = Math.Min(existing.ReqSkillRank, spell.ReqSkillRank);
             existing.Expansion = Math.Min(existing.Expansion, spell.Expansion);
             existing.Factions |= spell.Factions;
+            foreach ((int zoneId, int raceMask) in spell.TrainerZones)
+            {
+                existing.TrainerZones[zoneId] = existing.TrainerZones.GetValueOrDefault(zoneId) | raceMask;
+            }
         }
 
         foreach (ExtractedSpellData spell in best.Values)
         {
+            // Every race written as 0, as RaceMask does
+            spell.TrainerZones = spell.TrainerZones
+                .OrderBy(zone => zone.Key)
+                .ToDictionary(zone => zone.Key, zone => zone.Value == PLAYABLE_RACES_MASK ? 0 : zone.Value);
+
             // Both teams, or neither, means the spell is not faction bound
             spell.Factions = spell.Factions == (FACTION_ALLIANCE | FACTION_HORDE) ? FACTION_ANY : spell.Factions;
         }
@@ -717,6 +791,23 @@ public class SpellExtractorService(
         foreach (var entry in byName)
         {
             logger.LogInformation("\"{name}\" is shared by spells {ids}.", entry.Name, string.Join(", ", entry.Ids));
+        }
+    }
+
+    /// <summary>
+    /// A spell sold by weapon masters or mount trainers without a zone is one archipelawow cannot tell how
+    /// to reach. That is the spawn zone column left unpopulated (see the README), unless every trainer
+    /// selling the spell is never spawned or teaches no playable race.
+    /// </summary>
+    private void WarnOnTrainerSpellsWithoutZones(List<ExtractedSpellData> collected)
+    {
+        var sold = collected.Where(spell => spell.Kind is SpellKind.Weapon or SpellKind.Riding or SpellKind.Mount);
+        foreach (ExtractedSpellData spell in sold.Where(spell => spell.TrainerZones.Count == 0))
+        {
+            logger.LogWarning(
+                "No trainer selling \"{name}\" resolved a zone. Run worldserver once with " +
+                "\"Calculate.Creature.Zone.Area.Data = 1\" in worldserver.conf to populate the spawn tables.",
+                spell.Name);
         }
     }
 

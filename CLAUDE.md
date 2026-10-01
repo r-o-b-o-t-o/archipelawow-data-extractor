@@ -29,9 +29,9 @@ filtering rules and the output formats; read the relevant section before changin
 
 - `dotnet build` for a compile check. A full `dotnet run` needs a populated world database and DBC
   directory configured in `.env` (see README).
-- The quest extract needs the spawn zone columns populated (README, "Preparing the world database");
-  without them `startZones` / `endZones` come out empty. The tool warns and continues, so never commit
-  an extract produced with that warning.
+- Both extracts need the spawn zone columns populated (README, "Preparing the world database");
+  without them `startZones` / `endZones` and the weapon and riding skills' `trainerZones` come out
+  empty. The tool warns and continues, so never commit an extract produced with that warning.
 
 ## Commits
 

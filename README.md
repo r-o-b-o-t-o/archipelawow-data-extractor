@@ -44,9 +44,9 @@ Start worldserver once with those set, let it finish loading, then shut it down.
 written back to the database and stay populated, so this only has to be done once per world database
 (and again after any change that adds spawns). You can turn the options back off afterwards.
 
-Without this step most quests are extracted with empty `startZones` and `endZones`. The extractor logs
-a warning when it detects that, but it will not stop. Only the quest extract needs this; the spell
-extract does not read the spawn zones.
+Without this step most quests are extracted with empty `startZones` and `endZones`, and weapon skills
+and riding ranks with empty `trainerZones`. The extractor logs a warning when it detects that, but it
+will not stop.
 
 The extractor only reads from the database.
 
@@ -237,14 +237,21 @@ in one place: the trainer lists come from the world database, the names, ranks a
   progression: a character handed Journeyman Riding has no trainer path to Artisan unless Artisan is in
   the pool too. The four ranks are told apart from the rest by replacing one another in turn; Cold
   Weather Flying replaces nothing and is replaced by nothing, so it comes out as `"mount"` and stays off
-  that ladder.
+  that ladder. Both carry `trainerZones`: a racial riding trainer only teaches its own race, and the
+  ones a night elf, a draenei and an orc learn from stand in Darnassus, The Exodar and Orgrimmar rather
+  than in their starting zones. The race comes from the conditions on the trainer's gossip option, read
+  without the alternative that lets in a player exalted with the trainer's faction.
 - **Weapon skills** (`"weapon"`) — the weapon proficiencies a weapon master sells. A weapon master is
   keyed by no class at all, so these carry `classRaces` rather than `classId`: who may buy one is read
   off `SkillLineAbility.dbc` and `SkillRaceClassInfo.dbc` the way `Player::IsSpellFitByClassAndRace`
   does, and whoever is created already holding the skill is left out. Both halves matter — Thrown names
   no class in its skill line entry, and only `SkillRaceClassInfo.dbc` says it belongs to warriors,
   hunters and rogues — and so does race: a dwarf hunter starts with Guns and a troll one with Bows, so
-  each is sold what the other started with.
+  each is sold what the other started with. They also carry `trainerZones`, the zones their weapon
+  masters stand in: a class trainer is in every starting zone, but a weapon master only in the capital
+  cities and Eversong Woods, so ArchipelaWoW gates these checks on reaching one of those zones. Each zone
+  lists the races its trainers will teach, leaving out any their faction is hostile to: Thunder Bluff's
+  weapon master teaches the Horde only.
 - **Starter abilities** (`"starter"`) — what a character is created knowing, worked out the way the core
   does it, by walking the default skills of its race and class. These are resolved first and then kept
   out of the trainer sweep, so a realm with ArchipelaWoW's own update applied — which puts the starting
@@ -269,6 +276,7 @@ The classes that *are* extracted are listed in `RANDOMIZED_CLASS_IDS` in
   "name": "Lightning Bolt",
   "classId": 7,
   "classRaces": {},
+  "trainerZones": {},
   "reqLevel": 1,
   "reqSkillRank": 0,
   "taughtSpells": [],
@@ -283,6 +291,7 @@ The classes that *are* extracted are listed in `RANDOMIZED_CLASS_IDS` in
 | -------------- | ------------------------------------------------------------------------------------------ |
 | `classId`      | The class whose trainer teaches it, or `0` for riding ranks and weapon skills.               |
 | `classRaces`   | The races of each class that may buy it, for the entries no single class owns. Empty otherwise. |
+| `trainerZones` | For weapon and mount trainer entries, `AreaTable.dbc` zone id to the races taught there, `0` for all. |
 | `reqLevel`     | Lowest level any trainer will sell it at.                                                    |
 | `reqSkillRank` | Skill the trainer asks for first, which is how the riding ranks gate each other.             |
 | `taughtSpells` | What the entry teaches when cast, for the few that wrap a spell rather than being one.        |
@@ -302,7 +311,7 @@ extractor logs every clash it finds and ArchipelaWoW qualifies those names on it
 
 Everything under [`Entities/`](Entities) is scaffolded from the world database and should not be edited
 by hand; the hand-written navigations and keys live in [`EntityExtensions/`](EntityExtensions) as
-partial classes instead. Only the 22 tables the extractor actually reads are generated. From the Visual
+partial classes instead. Only the 23 tables the extractor actually reads are generated. From the Visual
 Studio Package Manager Console:
 
 ```powershell
@@ -310,7 +319,7 @@ Scaffold-DbContext 'Host=localhost;User=root;Password=root;Database=acore_world'
   -Context WorldDbContext -NoOnConfiguring -DataAnnotations -Force `
   -ContextDir Entities -ContextNamespace ArchipelaWoW.DataExtractor.Entities `
   -OutputDir Entities/World -Namespace ArchipelaWoW.DataExtractor.Entities.World `
-  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills,conditions
+  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills,conditions,gossip_menu_option
 ```
 
 Two things to know before running it:
