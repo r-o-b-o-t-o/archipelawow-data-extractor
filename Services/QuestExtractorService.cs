@@ -306,10 +306,14 @@ public class QuestExtractorService(
         1103,
     ];
 
-    // Quests limited to one faction group, which the faction relations of their givers let the other
-    // faction take.
+    // Quests limited to one faction group even though the faction relations of their givers let the other
+    // faction take them.
     private static readonly Dictionary<uint, int> FACTION_QUESTS = new()
     {
+        // "Winds in the Desert", "Securing the Lines": Rezlak is neutral, but they are the only quests the
+        // Alliance can take in Durotar, not worth a zone item
+        [834] = FACTION_MASK_HORDE,
+        [835] = FACTION_MASK_HORDE,
         // "Hilary's Necklace": Shawn and Hilary are friendly to the Horde, a bug Blizzard shipped too, but
         // they stand in Lakeshire, an Alliance town
         [3741] = FACTION_MASK_ALLIANCE,
