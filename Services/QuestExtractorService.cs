@@ -306,6 +306,18 @@ public class QuestExtractorService(
         1103,
     ];
 
+    // Quests limited to one faction group, which the faction relations of their givers let the other
+    // faction take.
+    private static readonly Dictionary<uint, int> FACTION_QUESTS = new()
+    {
+        // "Hilary's Necklace": Shawn and Hilary are friendly to the Horde, a bug Blizzard shipped too, but
+        // they stand in Lakeshire, an Alliance town
+        [3741] = FACTION_MASK_ALLIANCE,
+        // "One Shot. One Kill.": AzerothCore makes Sentinel Aynasha and Sentinel Onaeya neutral to the
+        // Horde, where Wowhead has them hostile
+        [5713] = FACTION_MASK_ALLIANCE,
+    };
+
     /// <summary>Zone ids already reported as missing from AreaTable.dbc, so each is only logged once.</summary>
     private readonly HashSet<int> unknownZoneIds = [];
 
@@ -439,11 +451,11 @@ public class QuestExtractorService(
             }
         }
 
-        int itemFactionGroup = GetStarterItemsFactionGroup(q);
-        if (itemFactionGroup != 0)
+        int factionGroup = FACTION_QUESTS.TryGetValue(q.Id, out int group) ? group : GetStarterItemsFactionGroup(q);
+        if (factionGroup != 0)
         {
             result ??= [.. playableRaces];
-            result.RemoveAll(race => GetRaceFaction(race) is { } faction && (faction.FactionGroup & itemFactionGroup) == 0);
+            result.RemoveAll(race => GetRaceFaction(race) is { } faction && (faction.FactionGroup & factionGroup) == 0);
         }
 
         // A list holding every playable race says no more than no restriction at all.

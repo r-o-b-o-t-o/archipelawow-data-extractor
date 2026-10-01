@@ -144,7 +144,8 @@ substitute for the flag.
 `races` and `classes` are `null` when the quest carries no restriction, and a list of DBC ids
 otherwise. `races` also leaves out the races a quest giver attacks on sight, and a quest started only by
 items flagged for one faction, such as "Resting in Pieces", keeps only that faction's races, as the core
-does not let the other one loot them.
+does not let the other one loot them. A few quests whose givers the faction relations open to the other
+faction by mistake, such as "Hilary's Necklace" in Lakeshire, are limited to their faction by hand.
 
 `suggestedGroupSize` is `null` on quests meant for one player. A quest the quest log tags as Group
 without saying how many players it wants, such as "Wanted: Gath'Ilzogg", counts as 2, the smallest
