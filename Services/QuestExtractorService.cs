@@ -485,8 +485,7 @@ public class QuestExtractorService(
         // starter with an alliance ender and a horde starter with a horde ender.
         static bool HasReachableGiver(List<FactionTemplate> questGivers, FactionTemplate raceFaction)
         {
-            return questGivers.Count == 0 || questGivers.Any(npc =>
-                IsFriendlyTo(npc, raceFaction) || !IsHostileTo(npc, raceFaction));
+            return questGivers.Count == 0 || questGivers.Any(npc => FactionRelations.WillTalkTo(npc, raceFaction));
         }
     }
 
@@ -513,59 +512,6 @@ public class QuestExtractorService(
     private FactionTemplate GetRaceFaction(ChrRaces race)
     {
         return factionTemplates.Get(race.FactionID);
-    }
-
-    // Faction relations are directional and only the quest giver's view matters here: the client
-    // refuses to open a gossip/quest window with a creature that is hostile to the player.
-    // See https://www.azerothcore.org/wiki/factiontemplate
-    // `Enemies`/`Friend` hold Faction ids matched against the other template's `Faction`, while
-    // `FactionGroup`/`FriendGroup`/`EnemyGroup` are bitmasks over the four faction groups
-    // (1: players, 2: alliance, 4: horde, 8: monsters).
-    private static bool IsHostileTo(FactionTemplate self, FactionTemplate other)
-    {
-        if (self.ID == other.ID)
-        {
-            return false;
-        }
-
-        if (other.Faction != 0)
-        {
-            if (self.Enemies.Contains(other.Faction))
-            {
-                return true;
-            }
-
-            // An explicit friend entry outranks the hostile group mask.
-            if (self.Friend.Contains(other.Faction))
-            {
-                return false;
-            }
-        }
-
-        return (self.EnemyGroup & other.FactionGroup) != 0;
-    }
-
-    private static bool IsFriendlyTo(FactionTemplate self, FactionTemplate other)
-    {
-        if (self.ID == other.ID)
-        {
-            return true;
-        }
-
-        if (other.Faction != 0)
-        {
-            if (self.Enemies.Contains(other.Faction))
-            {
-                return false;
-            }
-
-            if (self.Friend.Contains(other.Faction))
-            {
-                return true;
-            }
-        }
-
-        return (self.FriendGroup & other.FactionGroup) != 0 || (self.FactionGroup & other.FriendGroup) != 0;
     }
 
     /// <summary>
