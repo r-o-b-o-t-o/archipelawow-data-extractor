@@ -77,7 +77,9 @@ public static class ServiceCollectionExtensions
             .AddSingleton<SpellContainer>()
             .AddSingleton<SkillLineContainer>()
             .AddSingleton<SkillLineAbilityContainer>()
-            .AddSingleton<SkillRaceClassInfoContainer>();
+            .AddSingleton<SkillRaceClassInfoContainer>()
+            .AddSingleton<DungeonEncounterContainer>()
+            .AddSingleton<MapContainer>();
     }
 
     public static IServiceCollection AddRepositories(this IServiceCollection services)

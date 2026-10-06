@@ -25,6 +25,7 @@ public static class Program
         using var scope = host.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<QuestExtractorService>().ExtractQuests();
         await scope.ServiceProvider.GetRequiredService<SpellExtractorService>().ExtractSpells();
+        await scope.ServiceProvider.GetRequiredService<BossExtractorService>().ExtractBosses();
     }
 
     /// <summary>
@@ -68,6 +69,7 @@ public static class Program
             .AddWorldDbContext()
             .AddRepositories()
             .AddTransient<QuestExtractorService>()
-            .AddTransient<SpellExtractorService>();
+            .AddTransient<SpellExtractorService>()
+            .AddTransient<BossExtractorService>();
     }
 }

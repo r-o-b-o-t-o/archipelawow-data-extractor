@@ -1,15 +1,16 @@
 # CLAUDE.md
 
 .NET 10 console tool that reads an AzerothCore world database and the client DBCs, and writes the
-`quests.json` and `spells.json` the ArchipelaWoW APWorld ships. `README.md` documents the setup, the
-filtering rules and the output formats; read the relevant section before changing an extractor.
+`quests.json`, `spells.json` and `bosses.json` the ArchipelaWoW APWorld ships. `README.md` documents
+the setup, the filtering rules and the output formats; read the relevant section before changing an
+extractor.
 
 ## Related repositories
 
-- `archipelawow` — the APWorld that consumes the output, committed there as `data/quests.json` and
-  `data/spells.json` (`OUT_DIR`). A change to the output shape needs a matching change in its
-  `quest_model.py` / `spell_model.py`, and a change to what is extracted means regenerating and
-  committing the extracts there.
+- `archipelawow` — the APWorld that consumes the output, committed there as `data/quests.json`,
+  `data/spells.json` and `data/bosses.json` (`OUT_DIR`). A change to the output shape needs a
+  matching change in its `quest_model.py` / `spell_model.py` / `boss_model.py`, and a change to what
+  is extracted means regenerating and committing the extracts there.
 - `mod-i-found-your-sword` — the AzerothCore module.
 
 ## Code

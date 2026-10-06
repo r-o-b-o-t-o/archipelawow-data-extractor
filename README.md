@@ -3,13 +3,13 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/r-o-b-o-t-o/archipelawow-data-extractor/build.yml?branch=master)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Generates the `data/quests.json` and `data/spells.json` files consumed by
+Generates the `data/quests.json`, `data/spells.json` and `data/bosses.json` files consumed by
 [ArchipelaWoW](https://github.com/r-o-b-o-t-o/archipelawow), a custom APWorld for the
 [Archipelago](https://archipelago.gg) randomizer framework.
 
 The tool reads an [AzerothCore](https://www.azerothcore.org) world database and a 3.3.5a client's DBC
-files, works out which quests and which trainable spells make sense as randomizer locations, and
-writes each list as JSON. Both extracts are produced in one run.
+files, works out which quests, which trainable spells and which dungeon bosses make sense as
+randomizer locations, and writes each list as JSON. All three extracts are produced in one run.
 
 ## Contents
 
@@ -19,6 +19,7 @@ writes each list as JSON. Both extracts are produced in one run.
 - [Running](#running)
 - [Quests](#quests)
 - [Spells](#spells)
+- [Bosses](#bosses)
 - [Regenerating the entity model](#regenerating-the-entity-model)
 - [Third-party data](#third-party-data)
 - [License](#license)
@@ -80,8 +81,8 @@ works from both `dotnet run` and Visual Studio.
 dotnet run
 ```
 
-The tool logs every quest it drops along with the reason, then writes `quests.json` and `spells.json`
-to `OUT_DIR`, creating the directory if needed.
+The tool logs every quest and boss it drops along with the reason, then writes `quests.json`,
+`spells.json` and `bosses.json` to `OUT_DIR`, creating the directory if needed.
 
 ## Quests
 
@@ -307,11 +308,53 @@ Some names are shared by several spells: a mage and a druid both have a Remove C
 paladin spells come in one copy per faction. Archipelago keys items and locations by name, so the
 extractor logs every clash it finds and ArchipelaWoW qualifies those names on its side.
 
+## Bosses
+
+Defeating a dungeon boss is a location in ArchipelaWoW when a seed asks for it. A boss is an encounter of
+`DungeonEncounter.dbc`, and its id is what the server module checks the location on: the core credits an
+encounter through the world database's `instance_encounters`, when the creature it names dies or a
+script casts the spell it names. That also covers the bosses no single kill stands for, such as the Ring
+of Law in Blackrock Depths or the Tribunal of Ages in Halls of Stone.
+
+### What becomes an entry
+
+Every encounter of a 5-player dungeon (a `Map.dbc` instance type of `1`) at normal difficulty. A heroic
+encounter is a row of its own with an id of its own, and is left out. ArchipelaWoW only uses the dungeons
+it has a zone item for, so Trial of the Champion and the three Frozen Halls are extracted but go unused.
+
+Dropped along the way:
+
+- encounters `instance_encounters` has no row for, which the core never credits
+- bosses summoned with an item that comes from outside their dungeon, which the dungeon's zone item
+  alone does not lead to: Kirtonos the Herald, Avatar of Hakkar and Gahz'rilla. Urok Doomhowl stays, as
+  both items his summoning uses come from the same dungeon: Omokk's Head drops from Highlord Omokk, and
+  the Roughshod Pike from a chest anyone can open
+- the Violet Hold's First and Second Prisoner, which the core only credits for Erekem and Moragg, two of
+  the six prisoners a run picks from at random
+
+The few names `DungeonEncounter.dbc` misspells, such as "Salram the Fleshcrafter", are corrected by hand.
+
+### Output
+
+`bosses.json` is an array sorted by map, then in the order `DungeonEncounter.dbc` lists each dungeon's
+encounters:
+
+```json
+{
+  "id": 167,
+  "name": "Edwin VanCleef",
+  "map": { "id": 36, "name": "Deadmines" }
+}
+```
+
+`map` is the dungeon's `Map.dbc` id and name. ArchipelaWoW matches it to the map its dungeon's zone
+teleports into.
+
 ## Regenerating the entity model
 
 Everything under [`Entities/`](Entities) is scaffolded from the world database and should not be edited
 by hand; the hand-written navigations and keys live in [`EntityExtensions/`](EntityExtensions) as
-partial classes instead. Only the 23 tables the extractor actually reads are generated. From the Visual
+partial classes instead. Only the 24 tables the extractor actually reads are generated. From the Visual
 Studio Package Manager Console:
 
 ```powershell
@@ -319,7 +362,7 @@ Scaffold-DbContext 'Host=localhost;User=root;Password=root;Database=acore_world'
   -Context WorldDbContext -NoOnConfiguring -DataAnnotations -Force `
   -ContextDir Entities -ContextNamespace ArchipelaWoW.DataExtractor.Entities `
   -OutputDir Entities/World -Namespace ArchipelaWoW.DataExtractor.Entities.World `
-  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills,conditions,gossip_menu_option
+  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills,conditions,gossip_menu_option,instance_encounters
 ```
 
 Two things to know before running it:

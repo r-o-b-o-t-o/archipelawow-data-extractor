@@ -40,6 +40,8 @@ public partial class WorldDbContext : DbContext
 
     public virtual DbSet<GossipMenuOption> GossipMenuOptions { get; set; }
 
+    public virtual DbSet<InstanceEncounter> InstanceEncounters { get; set; }
+
     public virtual DbSet<ItemTemplate> ItemTemplates { get; set; }
 
     public virtual DbSet<PlayercreateinfoSkill> PlayercreateinfoSkills { get; set; }
@@ -256,6 +258,17 @@ public partial class WorldDbContext : DbContext
             entity.HasKey(e => new { e.MenuId, e.OptionId })
                 .HasName("PRIMARY")
                 .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+        });
+
+        modelBuilder.Entity<InstanceEncounter>(entity =>
+        {
+            entity.HasKey(e => e.Entry).HasName("PRIMARY");
+
+            entity.Property(e => e.Entry)
+                .ValueGeneratedNever()
+                .HasComment("Unique entry from DungeonEncounter.dbc");
+            entity.Property(e => e.Comment).HasDefaultValueSql("''");
+            entity.Property(e => e.LastEncounterDungeon).HasComment("If not 0, LfgDungeon.dbc entry for the instance it is last encounter in");
         });
 
         modelBuilder.Entity<ItemTemplate>(entity =>
