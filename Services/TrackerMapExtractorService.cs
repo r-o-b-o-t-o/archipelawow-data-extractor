@@ -465,25 +465,51 @@ public class TrackerMapExtractorService(
         }
 
         // The middle of what lights up the map
-        var strengths = pixels.Select(p => (int)(blend == ADD ? Math.Max(p.Red, Math.Max(p.Green, p.Blue)) : p.Alpha)).ToArray();
-        int max = Math.Max(1, strengths.Max());
-        double total = 0, sumX = 0, sumY = 0;
-        for (int i = 0; i < strengths.Length; i++)
-        {
-            if (strengths[i] * 2 > max)
-            {
-                total += strengths[i];
-                sumX += strengths[i] * (i % bitmap.Width + 0.5);
-                sumY += strengths[i] * (i / bitmap.Width + 0.5);
-            }
-        }
+        var center = ShapeCenter(pixels, bitmap.Width, p => blend == ADD ? Math.Max(p.Red, Math.Max(p.Green, p.Blue)) : p.Alpha);
 
         return new TrackerHighlight()
         {
             Image = file,
             Blend = blend,
             Rect = [.. rect.Select(v => MathF.Round(v, 5))],
-            Centroid = total == 0 ? [0.5f, 0.5f] : [MathF.Round((float)(sumX / total / bitmap.Width), 4), MathF.Round((float)(sumY / total / bitmap.Height), 4)],
+            Centroid = center is { } c ? [MathF.Round((float)(c.X / bitmap.Width), 4), MathF.Round((float)(c.Y / bitmap.Height), 4)] : [0.5f, 0.5f],
         };
+    }
+
+    /// <summary>
+    /// The middle of the shape an image shows, in its pixels: the centroid of the pixels at least half as strong as
+    /// the strongest, by strength, or the closest of those pixels when the shape bends around it. Null when the image
+    /// shows nothing.
+    /// </summary>
+    private static (double X, double Y)? ShapeCenter(SKColor[] pixels, int width, Func<SKColor, int> strengthOf)
+    {
+        int[] strengths = [.. pixels.Select(strengthOf)];
+        int max = strengths.Max();
+        if (max == 0)
+        {
+            return null;
+        }
+
+        bool InShape(int i) => strengths[i] * 2 > max;
+        double total = 0, sumX = 0, sumY = 0;
+        for (int i = 0; i < strengths.Length; i++)
+        {
+            if (InShape(i))
+            {
+                total += strengths[i];
+                sumX += strengths[i] * (i % width + 0.5);
+                sumY += strengths[i] * (i / width + 0.5);
+            }
+        }
+
+        double x = sumX / total, y = sumY / total;
+        if (InShape((int)y * width + (int)x))
+        {
+            return (x, y);
+        }
+
+        int closest = Enumerable.Range(0, strengths.Length).Where(InShape)
+            .MinBy(i => Math.Pow(i % width + 0.5 - x, 2) + Math.Pow(i / width + 0.5 - y, 2));
+        return (closest % width + 0.5, closest / width + 0.5);
     }
 }
