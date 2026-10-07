@@ -26,6 +26,7 @@ public static class Program
         await scope.ServiceProvider.GetRequiredService<QuestExtractorService>().ExtractQuests();
         await scope.ServiceProvider.GetRequiredService<SpellExtractorService>().ExtractSpells();
         await scope.ServiceProvider.GetRequiredService<BossExtractorService>().ExtractBosses();
+        await scope.ServiceProvider.GetRequiredService<TrackerExtractorService>().ExtractTracker();
     }
 
     /// <summary>
@@ -70,6 +71,10 @@ public static class Program
             .AddRepositories()
             .AddTransient<QuestExtractorService>()
             .AddTransient<SpellExtractorService>()
-            .AddTransient<BossExtractorService>();
+            .AddTransient<BossExtractorService>()
+            .AddSingleton<ClientTextures>()
+            .AddSingleton<WorldMapGeometry>()
+            .AddTransient<TrackerMapExtractorService>()
+            .AddTransient<TrackerExtractorService>();
     }
 }

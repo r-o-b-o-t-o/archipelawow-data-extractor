@@ -11,6 +11,10 @@ The tool reads an [AzerothCore](https://www.azerothcore.org) world database and 
 files, works out which quests, which trainable spells and which dungeon bosses make sense as
 randomizer locations, and writes each list as JSON. All three extracts are produced in one run.
 
+It can also write the data and images of the tracker in the
+[ArchipelaWoW launcher](https://github.com/r-o-b-o-t-o/archipelawow-launcher): the world maps, where the
+checks are on them, and icons, read from an extracted client as well.
+
 ## Contents
 
 - [Requirements](#requirements)
@@ -20,6 +24,7 @@ randomizer locations, and writes each list as JSON. All three extracts are produ
 - [Quests](#quests)
 - [Spells](#spells)
 - [Bosses](#bosses)
+- [Tracker](#tracker)
 - [Regenerating the entity model](#regenerating-the-entity-model)
 - [Third-party data](#third-party-data)
 - [License](#license)
@@ -29,6 +34,7 @@ randomizer locations, and writes each list as JSON. All three extracts are produ
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - A MySQL AzerothCore world database, reachable and already populated
 - A 3.3.5a `dbc` directory, such as the one AzerothCore needs at `data/dbc`
+- For the tracker extracts only, a 3.3.5a client's `Interface` folder, extracted from its MPQ archives
 
 ## Preparing the world database
 
@@ -74,6 +80,8 @@ works from both `dotnet run` and Visual Studio.
 | `WORLD_DB_DATABASE` | no       | `acore_world`    | World database name.                                                                |
 | `DBC_BUILD`         | no       | `3.3.5.12340`    | Client build the DBC files come from, used to pick the right column layout.         |
 | `DBC_LOCALE`        | no       | `enUS`           | Locale to read localised strings in.                                                |
+| `TRACKER_OUT_DIR`   | no       | —                | Directory the tracker extracts are written to: the launcher's `ui/public/tracker`. Skipped when unset. |
+| `CLIENT_DIRECTORY`  | with `TRACKER_OUT_DIR` | — | Extracted client folder holding `Interface`, such as `Data_enUS`.                 |
 
 ## Running
 
@@ -82,7 +90,11 @@ dotnet run
 ```
 
 The tool logs every quest and boss it drops along with the reason, then writes `quests.json`,
-`spells.json` and `bosses.json` to `OUT_DIR`, creating the directory if needed.
+`spells.json` and `bosses.json` to `OUT_DIR`, creating the directory if needed, and the tracker extracts
+to `TRACKER_OUT_DIR` when it is set.
+
+Settings in `.env` take precedence over the environment, so set `OUT_DIR` and `TRACKER_OUT_DIR` in `.env`
+itself.
 
 ## Quests
 
@@ -350,11 +362,115 @@ encounters:
 `map` is the dungeon's `Map.dbc` id and name. ArchipelaWoW matches it to the map its dungeon's zone
 teleports into.
 
+## Tracker
+
+The launcher's tracker shows a seed's checks on the game's world maps. The rules come from the seed
+itself, which carries them in its slot data; what the extractor writes is everything else: the maps,
+where the checks of `quests.json`, `spells.json` and `bosses.json` are on them, and the icons to draw
+them with. It reads those three extracts back from `OUT_DIR`, so they are written first.
+
+Everything goes to `TRACKER_OUT_DIR`, images as WebP:
+
+| Path               | Contents                                                                                 |
+| ------------------ | ---------------------------------------------------------------------------------------- |
+| `maps.json`        | The maps, from the cosmic map down to the cities                                          |
+| `maps/`            | Each map put together from its tiles, fully explored                                      |
+| `highlights/`      | What lights up on a map when the pointer is over one of its children                      |
+| `quests.json`      | Where each quest is picked up                                                             |
+| `flightpaths.json` | The flight masters, by `TaxiNodes.dbc` id: the taxi nodes with one standing by            |
+| `dungeons.json`    | The 5-player dungeons' entrances and encounters, by `Map.dbc` id                          |
+| `spells.json`      | The spells' icons                                                                         |
+| `achievements.json`, `items.json` | Icons, and an achievement's name and dungeon                               |
+| `icons/`           | Every icon those name, as `<lowercase name>.webp`                                         |
+| `ui/`              | Marker images, and the class and race icons as `class_<id>.webp` and `race_<id>.webp`     |
+| `characters.json`  | The names of those classes and races, and each race's side, by `ChrClasses.dbc` and `ChrRaces.dbc` id |
+
+Files are overwritten but never deleted: delete the folder first when an icon or a map goes away.
+
+### Positions
+
+A spot on a map is `[map, x, y]`: a `WorldMapArea.dbc` id, and where on that map from 0 to 1, left to
+right and top to bottom, the game's own map coordinates divided by 100. It is the map of the zone or
+city the spawn stands in, by the spawn tables' zone columns (see
+[Preparing the world database](#preparing-the-world-database)). A spot with no zone of its own, such as
+a taxi node or an area trigger, takes the zone of the closest spawn that has one: the spawns around an
+instance's entrance are filed under the instance's zone, which has no map. Spawns inside an instance are
+placed at its entrance.
+
+`quests.json` is keyed by quest id. `givers` lists where the quest givers spawn, up to 12 spots, with a
+fourth element when only one side can talk to the giver: `1` Alliance, `2` Horde. A quest started by an
+item has `"atEnder": true` and lists where it is turned in instead. A quest with neither has its zone's
+map as `map`, when it has one:
+
+```json
+{
+  "2": { "givers": [[43, 0.7378, 0.6146, 2]], "atEnder": true },
+  "7": { "givers": [[30, 0.4892, 0.4161, 1]] },
+  "9418": { "map": 465 }
+}
+```
+
+`dungeons.json` places each dungeon at the area triggers leading inside, or at its `Map.dbc` corpse
+position for the ones with no trigger on a continent, and lists the encounters of `bosses.json` in it.
+
+### Maps
+
+`maps.json` is an array of maps. Ids are `WorldMapArea.dbc` ids, and the game's own numbers for the two
+maps that file has no row for: `0` for Azeroth's world map and `-1` for the cosmic map.
+
+```json
+{
+  "id": 30,
+  "name": "Elwynn Forest",
+  "kind": "zone",
+  "parent": 14,
+  "image": "maps/elwynn.webp",
+  "continent": 0,
+  "bounds": [1535.4166, -1935.4166, -7939.583, -10254.166],
+  "center": [0.5187, 0.542],
+  "highlight": { "image": "highlights/elwynn.webp", "blend": "add", "rect": [0.40835, 0.70409, 0.08519, 0.08525] }
+}
+```
+
+| Field       | Meaning                                                                                      |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| `kind`      | `cosmic`, `world`, `continent`, `zone` or `city`.                                              |
+| `continent` | The map id of the continent the map is drawn on: the blood elf and draenei lands are part of Outland's map but drawn on Azeroth's continents. |
+| `bounds`    | What the map covers, in world coordinates on that continent: left, right, top and bottom.      |
+| `center`    | Where a zone's checks with no spot of their own gather: the middle of its highlight.            |
+| `highlight` | What lights up on the parent map, where it is drawn there (`rect`: x, y, width and height from 0 to 1), and how, as the game's alphaMode (`blend`): `add` adds the image's colour onto the map, black adding nothing; `blend` draws it over the map through its alpha. |
+| `hit`       | Where the map opens from on its parent, for the ones whose highlight is an outline rather than a shape. |
+| `zones`     | A continent's zones, as the game tells which one the pointer is over: a grid of zone ids over its map (`rect`, as a highlight's), `columns` wide and row by row, `0` where there is none. A city's cells are its zone's. |
+
+The images and placements come from the client. A zone's highlight is the game's `<zone>Highlight`
+texture, stretched over the zone's bounds on its continent. A city opens from its zone, through the
+zone's explored area that covers it, which lights up as the game has no highlight for it. The cosmic
+map's two buttons are read from FrameXML's `WorldMapFrame.xml`. A continent's zones come from its `.zmp`,
+the game's grid of `AreaTable.dbc` ids over the continent, half an ADT tile per cell, which it reads the
+zone under the pointer from, on a zone's map too: Hrothgar's Landing came after Northrend's, and takes
+the empty cells its highlight lights up. The class and race icons are cut out of the character creation
+screen's with the coordinates in FrameXML and GlueXML. Only the placement of the continents on Azeroth's
+world map is in no file: the game works it out in code from `WorldMapContinent.dbc`, and the scale it
+uses was measured against in-game screenshots (`WORLD_MAP_SCALE` in
+[`TrackerMapExtractorService`](Services/TrackerMapExtractorService.cs)).
+
+### Icons
+
+`achievements.json` covers the General, Quests, Exploration and Dungeons & Raids categories, where
+ArchipelaWoW's achievements come from, and whose exploration and dungeon achievements lend most of its
+zone items their icons. An achievement's `map` is its dungeon's `Map.dbc` id: `Achievement.dbc` names it
+for few of the classic and Outland dungeons' own, which take that of the encounter their boss kill credits
+(`instance_encounters`) instead. `items.json` covers the glyphs, bags and heirlooms. The icons no extract names
+are listed in `TRACKER_ICONS` in [`TrackerExtractorService`](Services/TrackerExtractorService.cs): the
+progressive items', gold's and random gear's, and those of the zone items no achievement lends one to,
+such as the capital cities' mage teleports. A zone item given an icon of its own in ArchipelaWoW's
+`items/zones.py` needs it added there.
+
 ## Regenerating the entity model
 
 Everything under [`Entities/`](Entities) is scaffolded from the world database and should not be edited
 by hand; the hand-written navigations and keys live in [`EntityExtensions/`](EntityExtensions) as
-partial classes instead. Only the 24 tables the extractor actually reads are generated. From the Visual
+partial classes instead. Only the 25 tables the extractor actually reads are generated. From the Visual
 Studio Package Manager Console:
 
 ```powershell
@@ -362,7 +478,7 @@ Scaffold-DbContext 'Host=localhost;User=root;Password=root;Database=acore_world'
   -Context WorldDbContext -NoOnConfiguring -DataAnnotations -Force `
   -ContextDir Entities -ContextNamespace ArchipelaWoW.DataExtractor.Entities `
   -OutputDir Entities/World -Namespace ArchipelaWoW.DataExtractor.Entities.World `
-  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills,conditions,gossip_menu_option,instance_encounters
+  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills,conditions,gossip_menu_option,instance_encounters,areatrigger_teleport
 ```
 
 Two things to know before running it:

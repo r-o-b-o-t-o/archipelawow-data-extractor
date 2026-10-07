@@ -79,7 +79,17 @@ public static class ServiceCollectionExtensions
             .AddSingleton<SkillLineAbilityContainer>()
             .AddSingleton<SkillRaceClassInfoContainer>()
             .AddSingleton<DungeonEncounterContainer>()
-            .AddSingleton<MapContainer>();
+            .AddSingleton<MapContainer>()
+            .AddSingleton<WorldMapOverlayContainer>()
+            .AddSingleton<WorldMapContinentContainer>()
+            .AddSingleton<WorldMapTransformsContainer>()
+            .AddSingleton<TaxiNodesContainer>()
+            .AddSingleton<AreaTriggerContainer>()
+            .AddSingleton<SpellIconContainer>()
+            .AddSingleton<AchievementContainer>()
+            .AddSingleton<AchievementCategoryContainer>()
+            .AddSingleton<AchievementCriteriaContainer>()
+            .AddSingleton<ItemDisplayInfoContainer>();
     }
 
     public static IServiceCollection AddRepositories(this IServiceCollection services)

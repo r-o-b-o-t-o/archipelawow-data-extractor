@@ -13,6 +13,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="BLPSharp" Version="0.1.0" />
 		<PackageReference Include="dotenv.net" Version="4.0.2" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
@@ -28,5 +29,6 @@
 		<PackageReference Include="Microting.EntityFrameworkCore.MySql" Version="10.0.11" />
 		<PackageReference Include="Roboto.Dbc.Generator" Version="1.0.1" />
 		<PackageReference Include="Roboto.Dbc.Reader" Version="1.0.0" />
+		<PackageReference Include="SkiaSharp" Version="4.153.1" />
 	</ItemGroup>
 </Project>

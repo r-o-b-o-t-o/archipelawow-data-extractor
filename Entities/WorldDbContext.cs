@@ -12,6 +12,8 @@ public partial class WorldDbContext : DbContext
     {
     }
 
+    public virtual DbSet<AreatriggerTeleport> AreatriggerTeleports { get; set; }
+
     public virtual DbSet<Condition> Conditions { get; set; }
 
     public virtual DbSet<Creature> Creatures { get; set; }
@@ -65,6 +67,17 @@ public partial class WorldDbContext : DbContext
         modelBuilder
             .UseCollation("utf8mb4_0900_ai_ci")
             .HasCharSet("utf8mb4");
+
+        modelBuilder.Entity<AreatriggerTeleport>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("areatrigger_teleport", tb => tb.HasComment("Trigger System"));
+
+            entity.HasIndex(e => e.Name, "name").HasAnnotation("MySql:FullTextIndex", true);
+
+            entity.Property(e => e.Id).ValueGeneratedNever();
+        });
 
         modelBuilder.Entity<Condition>(entity =>
         {
