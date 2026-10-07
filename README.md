@@ -3,13 +3,13 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/r-o-b-o-t-o/archipelawow-data-extractor/build.yml?branch=master)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Generates the `data/quests.json`, `data/spells.json` and `data/bosses.json` files consumed by
-[ArchipelaWoW](https://github.com/r-o-b-o-t-o/archipelawow), a custom APWorld for the
+Generates the `data/quests.json`, `data/spells.json`, `data/bosses.json` and `data/explorations.json`
+files consumed by [ArchipelaWoW](https://github.com/r-o-b-o-t-o/archipelawow), a custom APWorld for the
 [Archipelago](https://archipelago.gg) randomizer framework.
 
 The tool reads an [AzerothCore](https://www.azerothcore.org) world database and a 3.3.5a client's DBC
-files, works out which quests, which trainable spells and which dungeon bosses make sense as
-randomizer locations, and writes each list as JSON. All three extracts are produced in one run.
+files, works out which quests, which trainable spells, which dungeon bosses and which subzones make
+sense as randomizer locations, and writes each list as JSON. All four extracts are produced in one run.
 
 It can also write the data and images of the tracker in the
 [ArchipelaWoW launcher](https://github.com/r-o-b-o-t-o/archipelawow-launcher): the world maps, where the
@@ -24,6 +24,7 @@ checks are on them, and icons, read from an extracted client as well.
 - [Quests](#quests)
 - [Spells](#spells)
 - [Bosses](#bosses)
+- [Explorations](#explorations)
 - [Tracker](#tracker)
 - [Regenerating the entity model](#regenerating-the-entity-model)
 - [Third-party data](#third-party-data)
@@ -90,8 +91,8 @@ dotnet run
 ```
 
 The tool logs every quest and boss it drops along with the reason, then writes `quests.json`,
-`spells.json` and `bosses.json` to `OUT_DIR`, creating the directory if needed, and the tracker extracts
-to `TRACKER_OUT_DIR` when it is set.
+`spells.json`, `bosses.json` and `explorations.json` to `OUT_DIR`, creating the directory if needed, and
+the tracker extracts to `TRACKER_OUT_DIR` when it is set.
 
 Settings in `.env` take precedence over the environment, so set `OUT_DIR` and `TRACKER_OUT_DIR` in `.env`
 itself.
@@ -361,6 +362,41 @@ encounters:
 
 `map` is the dungeon's `Map.dbc` id and name. ArchipelaWoW matches it to the map its dungeon's zone
 teleports into.
+
+## Explorations
+
+Discovering a subzone is a location in ArchipelaWoW when a seed asks for it. A subzone is a criterion of
+an exploration achievement in `Achievement_Criteria.dbc`, and its id is what the server module checks the
+location on: the core credits it the first time the character discovers one of the areas of the
+`WorldMapOverlay.dbc` entry it names.
+
+### What becomes an entry
+
+Every "explore area" criterion of the achievements in the Exploration category and the categories under
+it: the subzones of "Explore Elwynn Forest" and its kind. The category's achievements that ask for
+something else, such as other achievements or kills, add none. Nothing is filtered out: ArchipelaWoW
+only uses the subzones of the zones it has a zone item for, so those of Moonglade or Deadwind Pass are
+extracted but go unused.
+
+The few names `Achievement_Criteria.dbc` misspells, such as "Ampitheater of Anguish", are corrected by
+hand to the spelling of `AreaTable.dbc`.
+
+### Output
+
+`explorations.json` is an array sorted by achievement id, then in the order the achievement lists its
+criteria:
+
+```json
+{
+  "id": 1149,
+  "name": "Stormwind City",
+  "zone": { "id": 1519, "name": "Stormwind City" }
+}
+```
+
+`name` is the criterion's, as the achievement shows it. `zone` is the `AreaTable.dbc` zone the
+subzone's areas lie in, which is the achievement's zone for all but the capitals some of them ask for:
+Elwynn Forest's lists Stormwind City, Terokkar Forest's Shattrath City.
 
 ## Tracker
 
