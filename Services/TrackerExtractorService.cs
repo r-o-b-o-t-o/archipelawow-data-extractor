@@ -15,8 +15,8 @@ namespace ArchipelaWoW.DataExtractor.Services;
 
 /// <summary>
 /// Writes what the launcher's tracker shows that archipelawow doesn't need: where its checks are on the world
-/// maps, and the icons and images to draw them with. Covers the quests, spells and bosses of the extracts in
-/// OUT_DIR, which are therefore written first.
+/// maps, and the icons and images to draw them with. Covers the quests, spells, bosses and subzones of the
+/// extracts in OUT_DIR, which are therefore written first.
 /// </summary>
 public partial class TrackerExtractorService(
         ILogger<TrackerExtractorService> logger,
@@ -33,6 +33,7 @@ public partial class TrackerExtractorService(
         AchievementContainer achievements,
         AchievementCategoryContainer achievementCategories,
         AchievementCriteriaContainer achievementCriteria,
+        WorldMapOverlayContainer overlays,
         ItemDisplayInfoContainer itemDisplays,
         ChrRacesContainer races,
         ChrClassesContainer classes,
@@ -147,6 +148,7 @@ public partial class TrackerExtractorService(
         await ExtractQuests(outDir, dataDir, entrances, spawns);
         await ExtractFlightPaths(outDir, spawns);
         ExtractSpells(outDir, dataDir, icons);
+        ExtractExplorations(outDir, dataDir, icons);
         await ExtractAchievements(outDir, icons);
         await ExtractItems(outDir, icons);
         WriteIcons(outDir, icons);
@@ -391,6 +393,30 @@ public partial class TrackerExtractorService(
 
         Write(outDir, "spells.json", result);
         logger.LogInformation("Wrote the icons of {count} spells.", result.Count);
+    }
+
+    /// <summary>The subzones of explorations.json, in the middle of their explored area, with their achievement's icon.</summary>
+    private void ExtractExplorations(string outDir, string dataDir, HashSet<string> icons)
+    {
+        var result = new SortedDictionary<int, object>();
+        foreach (int id in ReadIds(dataDir, "explorations.json"))
+        {
+            var criteria = achievementCriteria.Get(id);
+            if (mapExtractor.ExploredAreaPosition(overlays.Get(criteria.AssetID)) is not { } position)
+            {
+                logger.LogWarning("Found no spot for the subzone {id}.", id);
+                continue;
+            }
+
+            result[id] = new
+            {
+                Position = position.ToJson(),
+                Icon = Icon(spellIcons.Get(achievements.Get(criteria.AchievementID)?.IconID ?? 0)?.TextureFilename, icons),
+            };
+        }
+
+        Write(outDir, "explorations.json", result);
+        logger.LogInformation("Wrote {count} subzones.", result.Count);
     }
 
     /// <summary>

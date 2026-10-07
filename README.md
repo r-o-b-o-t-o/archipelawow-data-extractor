@@ -402,8 +402,8 @@ Elwynn Forest's lists Stormwind City, Terokkar Forest's Shattrath City.
 
 The launcher's tracker shows a seed's checks on the game's world maps. The rules come from the seed
 itself, which carries them in its slot data; what the extractor writes is everything else: the maps,
-where the checks of `quests.json`, `spells.json` and `bosses.json` are on them, and the icons to draw
-them with. It reads those three extracts back from `OUT_DIR`, so they are written first.
+where the checks of `quests.json`, `spells.json`, `bosses.json` and `explorations.json` are on them, and
+the icons to draw them with. It reads those four extracts back from `OUT_DIR`, so they are written first.
 
 Everything goes to `TRACKER_OUT_DIR`, images as WebP:
 
@@ -415,6 +415,7 @@ Everything goes to `TRACKER_OUT_DIR`, images as WebP:
 | `quests.json`      | Where each quest is picked up                                                             |
 | `flightpaths.json` | The flight masters, by `TaxiNodes.dbc` id: the taxi nodes with one standing by            |
 | `dungeons.json`    | The 5-player dungeons' entrances and encounters, by `Map.dbc` id                          |
+| `explorations.json` | Where each subzone is, and its achievement's icon, by `Achievement_Criteria.dbc` id      |
 | `spells.json`      | The spells' icons                                                                         |
 | `achievements.json`, `items.json` | Icons, and an achievement's name and dungeon                               |
 | `icons/`           | Every icon those name, as `<lowercase name>.webp`                                         |
@@ -448,6 +449,17 @@ map as `map`, when it has one:
 
 `dungeons.json` places each dungeon at the area triggers leading inside, or at its `Map.dbc` corpse
 position for the ones with no trigger on a continent, and lists the encounters of `bosses.json` in it.
+
+`explorations.json` places each subzone on its zone's map, in the middle of the `WorldMapOverlay.dbc`
+explored area its criterion names: the centroid of the area's shape, or the point of the shape closest
+to it when the shape bends around it. The few explored areas with no texture are placed in the middle of
+the hit rectangle `WorldMapOverlay.dbc` gives them instead.
+
+```json
+{
+  "1149": { "position": [30, 0.251, 0.2822], "icon": "achievement_zone_elwynnforest" }
+}
+```
 
 ### Maps
 

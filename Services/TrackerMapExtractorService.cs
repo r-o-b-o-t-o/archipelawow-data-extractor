@@ -116,6 +116,9 @@ public class TrackerMapExtractorService(
     // instead, by a guess at about as much as a zone's highlight
     private const float CITY_HIGHLIGHT = 0.3f;
 
+    /// <summary>The middle of each explored area drawn on a map, by WorldMapOverlay id, kept as the maps are written.</summary>
+    private readonly Dictionary<int, MapPosition> exploredAreas = [];
+
     public List<TrackerMap> ExtractMaps(string outDir)
     {
         var continentsByMap = geometry.Continents.ToDictionary(area => area.MapID);
@@ -380,7 +383,10 @@ public class TrackerMapExtractorService(
         }
     }
 
-    /// <summary>Puts a map together from its twelve tiles and the explored areas drawn over them, and writes it.</summary>
+    /// <summary>
+    /// Puts a map together from its twelve tiles and the explored areas drawn over them, and writes it. Keeps the
+    /// middle of each explored area, for <see cref="ExploredAreaPosition"/>.
+    /// </summary>
     private string WriteMap(string outDir, string folder, string name, List<WorldMapOverlay> mapOverlays)
     {
         using var bitmap = ClientTextures.NewBitmap(MAP_WIDTH, MAP_HEIGHT);
@@ -394,16 +400,37 @@ public class TrackerMapExtractorService(
             canvas.DrawBitmap(tile, i % 4 * 256, i / 4 * 256, SKSamplingOptions.Default);
         }
 
-        foreach (var overlay in mapOverlays.Where(overlay => overlay.TextureName.Length > 0))
+        foreach (var overlay in mapOverlays)
         {
+            // A few have no texture, only the hit rectangle WorldMapOverlay.dbc gives in the same map pixels
+            if (overlay.TextureName.Length == 0)
+            {
+                exploredAreas[overlay.ID] = new MapPosition(overlay.MapAreaID,
+                    (overlay.HitRectLeft + overlay.HitRectRight) / 2f / MAP_WIDTH, (overlay.HitRectTop + overlay.HitRectBottom) / 2f / MAP_HEIGHT);
+                continue;
+            }
+
             using var image = ComposeOverlay(folder, overlay);
             canvas.DrawBitmap(image, overlay.OffsetX, overlay.OffsetY, SKSamplingOptions.Default);
+            if (ShapeCenter(image.Pixels, image.Width, p => p.Alpha) is { } center)
+            {
+                exploredAreas[overlay.ID] = new MapPosition(overlay.MapAreaID,
+                    (float)((overlay.OffsetX + center.X) / MAP_WIDTH), (float)((overlay.OffsetY + center.Y) / MAP_HEIGHT));
+            }
         }
 
         string file = $"maps/{name.ToLowerInvariant()}.webp";
         ClientTextures.SaveWebp(bitmap, Path.Combine(outDir, file), MAP_QUALITY);
         return file;
     }
+
+    /// <summary>
+    /// The middle of an explored area on the map <see cref="ExtractMaps"/> drew it on: the middle of its shape rather
+    /// than of its texture, which can take in much of what's around it. Null when no map drew it, or when its texture
+    /// shows nothing.
+    /// </summary>
+    public MapPosition? ExploredAreaPosition(WorldMapOverlay overlay) =>
+        exploredAreas.TryGetValue(overlay.ID, out var position) ? position : null;
 
     /// <summary>An explored area of a map, put together from its 256px tiles.</summary>
     private SKBitmap ComposeOverlay(string folder, WorldMapOverlay overlay)
