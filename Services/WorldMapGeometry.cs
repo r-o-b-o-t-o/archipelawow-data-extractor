@@ -1,4 +1,5 @@
 using ArchipelaWoW.DataExtractor.Dbc;
+using ArchipelaWoW.DataExtractor.Extensions;
 
 namespace ArchipelaWoW.DataExtractor.Services;
 
@@ -65,7 +66,7 @@ public class WorldMapGeometry
     /// </summary>
     public MapPosition? Locate(int map, int areaId, float x, float y)
     {
-        for (var area = areaTable.Get(areaId); area != null; area = area.ParentAreaID == 0 ? null : areaTable.Get(area.ParentAreaID))
+        foreach (var area in areaTable.WithParents(areaId))
         {
             if (mapsByArea.TryGetValue(area.ID, out var worldMap) && worldMap.MapID == map)
             {
@@ -78,7 +79,7 @@ public class WorldMapGeometry
     /// <summary>The map of an area, or of the closest area above it with one; null when there is none.</summary>
     public WorldMapArea MapOf(int areaId)
     {
-        for (var area = areaTable.Get(areaId); area != null; area = area.ParentAreaID == 0 ? null : areaTable.Get(area.ParentAreaID))
+        foreach (var area in areaTable.WithParents(areaId))
         {
             if (mapsByArea.TryGetValue(area.ID, out var worldMap))
             {

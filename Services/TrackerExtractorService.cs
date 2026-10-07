@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using ArchipelaWoW.DataExtractor.Dbc;
 using ArchipelaWoW.DataExtractor.Entities;
+using ArchipelaWoW.DataExtractor.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
@@ -414,21 +415,8 @@ public partial class TrackerExtractorService(
             return dungeons.Count == 1 ? dungeons[0] : null;
         }
 
-        var parents = achievementCategories.ToDictionary(c => c.ID, c => c.Parent);
-        bool Included(int category)
-        {
-            for (int id = category; id > 0; id = parents.GetValueOrDefault(id))
-            {
-                if (ACHIEVEMENT_CATEGORIES.Contains(id))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         var result = new SortedDictionary<int, object>();
-        foreach (var achievement in achievements.Where(a => Included(a.Category)))
+        foreach (var achievement in achievements.Where(a => achievementCategories.WithParents(a.Category).Any(ACHIEVEMENT_CATEGORIES.Contains)))
         {
             result[achievement.ID] = new
             {
