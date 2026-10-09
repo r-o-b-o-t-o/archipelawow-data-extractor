@@ -70,6 +70,7 @@ public static class Program
             .AddDbcContainers()
             .AddWorldDbContext()
             .AddRepositories()
+            .AddSingleton<CharacterSkills>()
             .AddTransient<QuestExtractorService>()
             .AddTransient<SpellExtractorService>()
             .AddTransient<BossExtractorService>()

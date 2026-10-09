@@ -278,7 +278,7 @@ Dual Wield and the armor proficiencies, a mage's `Teleport:` and `Portal:` spell
 Death knights are left out entirely, since ArchipelaWoW does not offer the class: their trainers are
 skipped, their starting kit is not collected, and they are named by no weapon skill's `classRaces`.
 The classes that *are* extracted are listed in `RANDOMIZED_CLASS_IDS` in
-[`SpellExtractorService`](Services/SpellExtractorService.cs), the one place to change if that ever moves.
+[`CharacterSkills`](Services/CharacterSkills.cs), the one place to change if that ever moves.
 
 ### Output
 

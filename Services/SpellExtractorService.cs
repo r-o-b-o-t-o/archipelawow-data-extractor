@@ -5,6 +5,7 @@ using ArchipelaWoW.DataExtractor.Dbc;
 using ArchipelaWoW.DataExtractor.Entities.World;
 using ArchipelaWoW.DataExtractor.Services.Repositories;
 using Microsoft.Extensions.Logging;
+using static ArchipelaWoW.DataExtractor.Services.CharacterSkills;
 
 namespace ArchipelaWoW.DataExtractor.Services;
 
@@ -72,7 +73,7 @@ public class SpellExtractorService(
         SpellContainer spells,
         SkillLineContainer skillLines,
         SkillLineAbilityContainer skillLineAbilities,
-        SkillRaceClassInfoContainer skillRaceClassInfos,
+        CharacterSkills characterSkills,
         FactionTemplateContainer factionTemplates,
         ChrRacesContainer races
     )
@@ -145,25 +146,8 @@ public class SpellExtractorService(
     private const int FACTION_ALLIANCE = 1;
     private const int FACTION_HORDE = 2;
 
-    // The classes ArchipelaWoW can roll a seed for. Listed rather than counted through for two
-    // reasons: Wrath has no class 10, so the ids run 1-9 and then 11 and a mask bit for that gap does
-    // turn up in the DBCs; and the death knight (6) is left out on purpose, since it starts at level
-    // 55 with a kit of its own and ArchipelaWoW does not offer it.
-    private static readonly int[] RANDOMIZED_CLASS_IDS = [1, 2, 3, 4, 5, 7, 8, 9, 11];
-
-    // The races a Wrath character can be. Listed for the same reason as the classes above: race 9, the
-    // goblin, holds a mask bit and a ChrRaces row of its own but is not playable until Cataclysm.
-    private static readonly int[] PLAYABLE_RACE_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11];
-    private static readonly int PLAYABLE_RACES_MASK = PLAYABLE_RACE_IDS.Aggregate(0, (mask, raceId) => mask | RaceBit(raceId));
-
-    // A race or class mask of zero means "every one of them" throughout the DBCs and the create-info
-    // tables, so it is widened to these before two masks are intersected.
-    private const int ALL_RACES_MASK = 0x7FF;
-    private static readonly int ALL_CLASSES_MASK = RANDOMIZED_CLASS_IDS.Aggregate(0, (mask, classId) => mask | ClassBit(classId));
-
     private Dictionary<int, List<SkillLineAbility>> abilitiesBySpell;
     private Dictionary<int, List<SkillLineAbility>> abilitiesBySkill;
-    private Dictionary<int, List<SkillRaceClassInfo>> raceClassInfoBySkill;
     private HashSet<int> ladderSpells;
     private HashSet<int> classSkillLines;
 
@@ -172,7 +156,6 @@ public class SpellExtractorService(
         string outDir = OutputDirectory.Prepare();
 
         BuildAbilityIndexes();
-        BuildRaceClassIndex();
         ladderSpells = CollectLadderSpells();
         classSkillLines = [.. skillLines.Where(skillLine => skillLine.CategoryID == SKILL_CATEGORY_CLASS).Select(skillLine => skillLine.ID)];
 
@@ -226,20 +209,6 @@ public class SpellExtractorService(
                 index[key] = abilities = [];
             }
             abilities.Add(ability);
-        }
-    }
-
-    private void BuildRaceClassIndex()
-    {
-        raceClassInfoBySkill = [];
-
-        foreach (SkillRaceClassInfo info in skillRaceClassInfos)
-        {
-            if (!raceClassInfoBySkill.TryGetValue(info.SkillID, out var infos))
-            {
-                raceClassInfoBySkill[info.SkillID] = infos = [];
-            }
-            infos.Add(info);
         }
     }
 
@@ -450,24 +419,6 @@ public class SpellExtractorService(
     }
 
     /// <summary>
-    /// Whether a character of this race and class is created already holding a skill.
-    ///
-    /// A weapon skill the character already has is not something a weapon master will ever sell, so it
-    /// cannot become a check however many masters list it. Mirrors what the core hands out at creation
-    /// in ObjectMgr: both masks of the create-info row have to name the character, and
-    /// SkillRaceClassInfo has to hold the skill for that pair. Which weapon a character starts with is
-    /// as much a matter of race as of class -- a dwarf hunter is created holding Guns and a troll one
-    /// Bows -- and the ones it did not start with are still there to be bought.
-    /// </summary>
-    private bool IsCreatedHolding(List<PlayercreateinfoSkill> createSkills, int skillId, int raceId, int classId)
-    {
-        return HasRaceClassInfo(skillId, raceId, classId)
-            && createSkills.Any(createSkill => createSkill.Skill == skillId
-                && (Widen((int)createSkill.RaceMask, ALL_RACES_MASK) & RaceBit(raceId)) != 0
-                && (Widen((int)createSkill.ClassMask, ALL_CLASSES_MASK) & ClassBit(classId)) != 0);
-    }
-
-    /// <summary>
     /// The weapon proficiencies a weapon master sells, with the races and classes that can buy each.
     ///
     /// Weapon masters are keyed by nothing at all -- any class may talk to one -- so unlike a class
@@ -529,6 +480,8 @@ public class SpellExtractorService(
     /// <summary>
     /// The races of each class that can still buy a weapon skill, keyed by class id.
     ///
+    /// A weapon skill the character already has is not something a weapon master will ever sell, so the
+    /// races created holding it are left out, while the ones that did not start with it can still buy it.
     /// A class with no race left to sell to is not in the map at all, and a map with nothing in it is a
     /// skill nobody can buy.
     /// </summary>
@@ -544,7 +497,7 @@ public class SpellExtractorService(
             foreach (int raceId in PLAYABLE_RACE_IDS)
             {
                 if (IsFitByClassAndRace(abilities, raceId, classId)
-                    && !skills.Any(skill => IsCreatedHolding(createSkills, skill, raceId, classId)))
+                    && !skills.Any(skill => characterSkills.IsCreatedHolding(createSkills, skill, raceId, classId)))
                 {
                     raceMask |= RaceBit(raceId);
                 }
@@ -598,18 +551,7 @@ public class SpellExtractorService(
         return abilities.Any(ability =>
             (Widen(ability.RaceMask, ALL_RACES_MASK) & RaceBit(raceId)) != 0
             && (Widen(ability.ClassMask, ALL_CLASSES_MASK) & ClassBit(classId)) != 0
-            && HasRaceClassInfo(ability.SkillLine, raceId, classId));
-    }
-
-    /// <summary>
-    /// Whether SkillRaceClassInfo hands a skill line to this race and class, the way
-    /// GetSkillRaceClassInfo in DBCStores reads it.
-    /// </summary>
-    private bool HasRaceClassInfo(int skillLineId, int raceId, int classId)
-    {
-        return raceClassInfoBySkill.GetValueOrDefault(skillLineId, []).Any(info =>
-            (Widen(info.RaceMask, ALL_RACES_MASK) & RaceBit(raceId)) != 0
-            && (Widen(info.ClassMask, ALL_CLASSES_MASK) & ClassBit(classId)) != 0);
+            && characterSkills.HasRaceClassInfo(ability.SkillLine, raceId, classId));
     }
 
     /// <summary>
@@ -668,7 +610,7 @@ public class SpellExtractorService(
                     int classRaceMask = 0;
                     foreach (int raceId in PLAYABLE_RACE_IDS)
                     {
-                        if ((raceMask & RaceBit(raceId)) != 0 && HasRaceClassInfo(createSkill.Skill, raceId, classId))
+                        if ((raceMask & RaceBit(raceId)) != 0 && characterSkills.HasRaceClassInfo(createSkill.Skill, raceId, classId))
                         {
                             classRaceMask |= RaceBit(raceId);
                         }
@@ -857,24 +799,5 @@ public class SpellExtractorService(
             return true;
         }
         return EXCLUDED_NAME_PREFIXES.Any(spell.NameLang.StartsWith);
-    }
-
-    /// <summary>
-    /// A mask of zero means "all of them" throughout the DBCs and the create-info tables, and has to be
-    /// widened to the full set before it is intersected with another mask.
-    /// </summary>
-    private static int Widen(int mask, int all)
-    {
-        return mask == 0 ? all : mask;
-    }
-
-    private static int ClassBit(int classId)
-    {
-        return 1 << (classId - 1);
-    }
-
-    private static int RaceBit(int raceId)
-    {
-        return 1 << (raceId - 1);
     }
 }
