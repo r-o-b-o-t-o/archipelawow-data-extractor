@@ -439,7 +439,8 @@ Elwynn Forest's lists Stormwind City, Terokkar Forest's Shattrath City.
 The launcher's tracker shows a seed's checks on the game's world maps. The rules come from the seed
 itself, which carries them in its slot data; what the extractor writes is everything else: the maps,
 where the checks of `quests.json`, `spells.json`, `bosses.json` and `explorations.json` are on them, and
-the icons to draw them with. It reads those four extracts back from `OUT_DIR`, so they are written first.
+the icons to draw them and those of `skills.json` with. It reads those five extracts back from `OUT_DIR`,
+so they are written first.
 
 Everything goes to `TRACKER_OUT_DIR`, images as WebP:
 
@@ -453,6 +454,7 @@ Everything goes to `TRACKER_OUT_DIR`, images as WebP:
 | `dungeons.json`    | The 5-player dungeons' entrances and encounters, by `Map.dbc` id                          |
 | `explorations.json` | Where each subzone is, and its achievement's icon, by `Achievement_Criteria.dbc` id      |
 | `spells.json`      | The spells' icons                                                                         |
+| `skills.json`      | The skills' names and icons, by `SkillLine.dbc` id                                        |
 | `achievements.json`, `items.json` | Icons, and an achievement's name and dungeon                               |
 | `icons/`           | Every icon those name, as `<lowercase name>.webp`                                         |
 | `ui/`              | Marker images, and the class and race icons as `class_<id>.webp` and `race_<id>.webp`     |
@@ -548,7 +550,8 @@ for few of the classic and Outland dungeons' own, which take that of the encount
 are listed in `TRACKER_ICONS` in [`TrackerExtractorService`](Services/TrackerExtractorService.cs): the
 progressive items', gold's and random gear's, and those of the zone items no achievement lends one to,
 such as the capital cities' mage teleports. A zone item given an icon of its own in ArchipelaWoW's
-`items/zones.py` needs it added there.
+`items/zones.py` needs it added there. A skill takes the icon of the weapon proficiency that teaches it,
+and those no weapon master sells, Defense and Unarmed, theirs from `SKILL_ICONS` in the same file.
 
 ## Regenerating the entity model
 

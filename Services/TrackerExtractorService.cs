@@ -15,7 +15,7 @@ namespace ArchipelaWoW.DataExtractor.Services;
 
 /// <summary>
 /// Writes what the launcher's tracker shows that archipelawow doesn't need: where its checks are on the world
-/// maps, and the icons and images to draw them with. Covers the quests, spells, bosses and subzones of the
+/// maps, and the icons and images to draw them with. Covers the quests, spells, skills, bosses and subzones of the
 /// extracts in OUT_DIR, which are therefore written first.
 /// </summary>
 public partial class TrackerExtractorService(
@@ -116,6 +116,16 @@ public partial class TrackerExtractorService(
         "Achievement_Boss_Murmur_01",
     ];
 
+    /// <summary>
+    /// The icons of the skills no weapon master sells, by SkillLine.dbc id. SkillLine.dbc gives every skill the same
+    /// placeholder, and Defense's own spell wears Shadowmeld's.
+    /// </summary>
+    private static readonly Dictionary<int, string> SKILL_ICONS = new()
+    {
+        [95] = "Ability_Defend",
+        [162] = "Ability_GolemThunderClap",
+    };
+
     /// <summary>Interface textures the tracker draws its markers with, and the names they're written under.</summary>
     private static readonly Dictionary<string, string> INTERFACE_IMAGES = new()
     {
@@ -148,6 +158,7 @@ public partial class TrackerExtractorService(
         await ExtractQuests(outDir, dataDir, entrances, spawns);
         await ExtractFlightPaths(outDir, spawns);
         ExtractSpells(outDir, dataDir, icons);
+        ExtractSkills(outDir, dataDir, icons);
         ExtractExplorations(outDir, dataDir, icons);
         await ExtractAchievements(outDir, icons);
         await ExtractItems(outDir, icons);
@@ -393,6 +404,22 @@ public partial class TrackerExtractorService(
 
         Write(outDir, "spells.json", result);
         logger.LogInformation("Wrote the icons of {count} spells.", result.Count);
+    }
+
+    /// <summary>The skills of skills.json, with the icon of the weapon proficiency that teaches them.</summary>
+    private void ExtractSkills(string outDir, string dataDir, HashSet<string> icons)
+    {
+        var result = new SortedDictionary<int, object>();
+        foreach (var skill in ReadArray(dataDir, "skills.json"))
+        {
+            int id = skill["id"].GetValue<int>();
+            string icon = SKILL_ICONS.GetValueOrDefault(id)
+                ?? spellIcons.Get(spells.Get(skill["spell"].GetValue<int>())?.SpellIconID ?? 0)?.TextureFilename;
+            result[id] = new { Name = skill["name"].GetValue<string>(), Icon = Icon(icon, icons) };
+        }
+
+        Write(outDir, "skills.json", result);
+        logger.LogInformation("Wrote {count} skills.", result.Count);
     }
 
     /// <summary>The subzones of explorations.json, in the middle of their explored area, with their achievement's icon.</summary>
