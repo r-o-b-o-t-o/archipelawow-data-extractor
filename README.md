@@ -3,13 +3,14 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/r-o-b-o-t-o/archipelawow-data-extractor/build.yml?branch=master)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Generates the `data/quests.json`, `data/spells.json`, `data/bosses.json` and `data/explorations.json`
-files consumed by [ArchipelaWoW](https://github.com/r-o-b-o-t-o/archipelawow), a custom APWorld for the
-[Archipelago](https://archipelago.gg) randomizer framework.
+Generates the `data/quests.json`, `data/spells.json`, `data/skills.json`, `data/bosses.json` and
+`data/explorations.json` files consumed by [ArchipelaWoW](https://github.com/r-o-b-o-t-o/archipelawow),
+a custom APWorld for the [Archipelago](https://archipelago.gg) randomizer framework.
 
 The tool reads an [AzerothCore](https://www.azerothcore.org) world database and a 3.3.5a client's DBC
-files, works out which quests, which trainable spells, which dungeon bosses and which subzones make
-sense as randomizer locations, and writes each list as JSON. All four extracts are produced in one run.
+files, works out which quests, which trainable spells, which skills, which dungeon bosses and which
+subzones make sense as randomizer locations, and writes each list as JSON. All five extracts are produced
+in one run.
 
 It can also write the data and images of the tracker in the
 [ArchipelaWoW launcher](https://github.com/r-o-b-o-t-o/archipelawow-launcher): the world maps, where the
@@ -23,6 +24,7 @@ checks are on them, and icons, read from an extracted client as well.
 - [Running](#running)
 - [Quests](#quests)
 - [Spells](#spells)
+- [Skills](#skills)
 - [Bosses](#bosses)
 - [Explorations](#explorations)
 - [Tracker](#tracker)
@@ -91,8 +93,8 @@ dotnet run
 ```
 
 The tool logs every quest and boss it drops along with the reason, then writes `quests.json`,
-`spells.json`, `bosses.json` and `explorations.json` to `OUT_DIR`, creating the directory if needed, and
-the tracker extracts to `TRACKER_OUT_DIR` when it is set.
+`spells.json`, `skills.json`, `bosses.json` and `explorations.json` to `OUT_DIR`, creating the directory
+if needed, and the tracker extracts to `TRACKER_OUT_DIR` when it is set.
 
 Settings in `.env` take precedence over the environment, so set `OUT_DIR` and `TRACKER_OUT_DIR` in `.env`
 itself.
@@ -320,6 +322,40 @@ side is listed in `taughtSpells` for the server module to hold back until its ow
 Some names are shared by several spells: a mage and a druid both have a Remove Curse, and a couple of
 paladin spells come in one copy per faction. Archipelago keys items and locations by name, so the
 extractor logs every clash it finds and ArchipelaWoW qualifies those names on its side.
+
+## Skills
+
+Raising a skill is a location in ArchipelaWoW: the weapon skills and Defense rise with use, up to five
+times the character's level. The extract says which skills there are, and which races of each class are
+created holding one, since those need no item to raise it. A character not created holding a skill buys
+it from a weapon master, which is the weapon skill of `spells.json` named by `spell`, and whose
+`classRaces` says who may.
+
+### What becomes an entry
+
+Every skill line of `SkillLine.dbc`'s Weapon Skills category, the one the character pane lists Defense
+and Unarmed under, except Dual Wield: its `SkillRaceClassInfo.dbc` entries flag it as always at its cap,
+so it is never raised. Which races of each class are created holding a skill is worked out the same way
+as for the weapon skills of `spells.json`.
+
+### Output
+
+`skills.json` is an array sorted by id:
+
+```json
+{
+  "id": 43,
+  "name": "Swords",
+  "spell": 201,
+  "startingClassRaces": { "1": 1279, "2": 1541, "3": 1791 }
+}
+```
+
+| Field                | Meaning                                                                                  |
+| -------------------- | ---------------------------------------------------------------------------------------- |
+| `id`                 | The `SkillLine.dbc` id, which the server module checks the locations on.                  |
+| `spell`              | The weapon proficiency a weapon master sells for it, `0` for Defense and Unarmed.         |
+| `startingClassRaces` | The races of each class created holding it, keyed by class id. Classes with none are left out. |
 
 ## Bosses
 

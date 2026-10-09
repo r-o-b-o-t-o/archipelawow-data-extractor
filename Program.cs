@@ -25,6 +25,7 @@ public static class Program
         using var scope = host.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<QuestExtractorService>().ExtractQuests();
         await scope.ServiceProvider.GetRequiredService<SpellExtractorService>().ExtractSpells();
+        await scope.ServiceProvider.GetRequiredService<SkillExtractorService>().ExtractSkills();
         await scope.ServiceProvider.GetRequiredService<BossExtractorService>().ExtractBosses();
         await scope.ServiceProvider.GetRequiredService<ExplorationExtractorService>().ExtractExplorations();
         await scope.ServiceProvider.GetRequiredService<TrackerExtractorService>().ExtractTracker();
@@ -73,6 +74,7 @@ public static class Program
             .AddSingleton<CharacterSkills>()
             .AddTransient<QuestExtractorService>()
             .AddTransient<SpellExtractorService>()
+            .AddTransient<SkillExtractorService>()
             .AddTransient<BossExtractorService>()
             .AddTransient<ExplorationExtractorService>()
             .AddSingleton<ClientTextures>()

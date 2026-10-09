@@ -1,18 +1,18 @@
 # CLAUDE.md
 
 .NET 10 console tool that reads an AzerothCore world database and the client DBCs, and writes the
-`quests.json`, `spells.json`, `bosses.json` and `explorations.json` the ArchipelaWoW APWorld ships,
-and, from an extracted client too, the maps, positions and icons of the launcher's tracker.
+`quests.json`, `spells.json`, `skills.json`, `bosses.json` and `explorations.json` the ArchipelaWoW
+APWorld ships, and, from an extracted client too, the maps, positions and icons of the launcher's tracker.
 `README.md` documents the setup, the filtering rules and the output formats; read the relevant
 section before changing an extractor.
 
 ## Related repositories
 
 - `archipelawow` — the APWorld that consumes the output, committed there as `data/quests.json`,
-  `data/spells.json`, `data/bosses.json` and `data/explorations.json` (`OUT_DIR`). A change to the
-  output shape needs a matching change in its `quest_model.py` / `spell_model.py` / `boss_model.py` /
-  `exploration_model.py`, and a change to what is extracted means regenerating and committing the
-  extracts there.
+  `data/spells.json`, `data/skills.json`, `data/bosses.json` and `data/explorations.json` (`OUT_DIR`). A
+  change to the output shape needs a matching change in its `quest_model.py` / `spell_model.py` /
+  `skill_model.py` / `boss_model.py` / `exploration_model.py`, and a change to what is extracted means
+  regenerating and committing the extracts there.
 - `archipelawow-launcher` — its tracker reads the tracker extracts, committed there under
   `ui/public/tracker` (`TRACKER_OUT_DIR`). A change to their shape needs a matching change in its
   `ui/src/tracker/types.ts`.

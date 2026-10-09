@@ -775,7 +775,7 @@ public class SpellExtractorService(
             .Select(effect => effect.Second)];
     }
 
-    private static bool IsWeaponProficiency(Spell spell)
+    public static bool IsWeaponProficiency(Spell spell)
     {
         return spell.Effect.Contains(SPELL_EFFECT_PROFICIENCY) && spell.EquippedItemClass == ITEM_CLASS_WEAPON;
     }
