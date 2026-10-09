@@ -117,13 +117,12 @@ public partial class TrackerExtractorService(
     ];
 
     /// <summary>
-    /// The icons of the skills no weapon master sells, by SkillLine.dbc id. SkillLine.dbc gives every skill the same
-    /// placeholder, and Defense's own spell wears Shadowmeld's.
+    /// The icons of the skills no weapon master sells, by SkillLine.dbc id: Defense. SkillLine.dbc gives every skill the
+    /// same placeholder, and Defense's own spell wears Shadowmeld's.
     /// </summary>
     private static readonly Dictionary<int, string> SKILL_ICONS = new()
     {
         [95] = "Ability_Defend",
-        [162] = "Ability_GolemThunderClap",
     };
 
     /// <summary>Interface textures the tracker draws its markers with, and the names they're written under.</summary>

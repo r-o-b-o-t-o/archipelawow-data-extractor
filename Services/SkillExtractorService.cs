@@ -16,7 +16,7 @@ public class ExtractedSkillData
 
     /// <summary>
     /// The weapon proficiency a weapon master sells for the skill, which is how a character not created holding it
-    /// comes by it, or 0 for the skills no weapon master sells: Defense and Unarmed.
+    /// comes by it, or 0 for Defense, which no weapon master sells.
     /// </summary>
     public int Spell { get; set; }
 
@@ -28,8 +28,8 @@ public class ExtractedSkillData
 }
 
 /// <summary>
-/// Builds the skill table archipelawow ships: the weapon skills, Defense and Unarmed among them, which rise with use
-/// up to five times the character's level.
+/// Builds the skill table archipelawow ships: the weapon skills and Defense, which rise with use up to five times the
+/// character's level.
 /// </summary>
 public class SkillExtractorService(
         ILogger<SkillExtractorService> logger,
@@ -54,6 +54,9 @@ public class SkillExtractorService(
     // use, which leaves out Dual Wield.
     private const int SKILL_FLAG_ALWAYS_MAX_VALUE = 0x10;
 
+    // Unarmed is left out too: it rises by fighting with no weapon in hand, which no class is played with.
+    private const int SKILL_UNARMED = 162;
+
     public async Task ExtractSkills()
     {
         string outDir = OutputDirectory.Prepare();
@@ -66,7 +69,8 @@ public class SkillExtractorService(
         var abilitiesBySkill = skillLineAbilities.ToLookup(ability => ability.SkillLine);
 
         List<ExtractedSkillData> collected = [.. skillLines
-            .Where(skillLine => skillLine.CategoryID == SKILL_CATEGORY_WEAPON && !alwaysMax.Contains(skillLine.ID))
+            .Where(skillLine => skillLine.CategoryID == SKILL_CATEGORY_WEAPON && !alwaysMax.Contains(skillLine.ID)
+                && skillLine.ID != SKILL_UNARMED)
             .OrderBy(skillLine => skillLine.ID)
             .Select(skillLine => new ExtractedSkillData()
             {

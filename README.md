@@ -334,8 +334,8 @@ it from a weapon master, which is the weapon skill of `spells.json` named by `sp
 ### What becomes an entry
 
 Every skill line of `SkillLine.dbc`'s Weapon Skills category, the one the character pane lists Defense
-and Unarmed under, except Dual Wield: its `SkillRaceClassInfo.dbc` entries flag it as always at its cap,
-so it is never raised. Which races of each class are created holding a skill is worked out the same way
+under, except two: Dual Wield, whose `SkillRaceClassInfo.dbc` entries flag it as always at its cap, so it
+is never raised, and Unarmed, which rises by fighting with no weapon in hand. Which races of each class are created holding a skill is worked out the same way
 as for the weapon skills of `spells.json`.
 
 ### Output
@@ -354,7 +354,7 @@ as for the weapon skills of `spells.json`.
 | Field                | Meaning                                                                                  |
 | -------------------- | ---------------------------------------------------------------------------------------- |
 | `id`                 | The `SkillLine.dbc` id, which the server module checks the locations on.                  |
-| `spell`              | The weapon proficiency a weapon master sells for it, `0` for Defense and Unarmed.         |
+| `spell`              | The weapon proficiency a weapon master sells for it, `0` for Defense.                     |
 | `startingClassRaces` | The races of each class created holding it, keyed by class id. Classes with none are left out. |
 
 ## Bosses
@@ -551,7 +551,7 @@ are listed in `TRACKER_ICONS` in [`TrackerExtractorService`](Services/TrackerExt
 progressive items', gold's and random gear's, and those of the zone items no achievement lends one to,
 such as the capital cities' mage teleports. A zone item given an icon of its own in ArchipelaWoW's
 `items/zones.py` needs it added there. A skill takes the icon of the weapon proficiency that teaches it,
-and those no weapon master sells, Defense and Unarmed, theirs from `SKILL_ICONS` in the same file.
+and Defense, which no weapon master sells, its own from `SKILL_ICONS` in the same file.
 
 ## Regenerating the entity model
 
