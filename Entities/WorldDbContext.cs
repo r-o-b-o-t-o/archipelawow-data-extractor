@@ -20,6 +20,8 @@ public partial class WorldDbContext : DbContext
 
     public virtual DbSet<CreatureDefaultTrainer> CreatureDefaultTrainers { get; set; }
 
+    public virtual DbSet<CreatureLootTemplate> CreatureLootTemplates { get; set; }
+
     public virtual DbSet<CreatureQuestender> CreatureQuestenders { get; set; }
 
     public virtual DbSet<CreatureQueststarter> CreatureQueststarters { get; set; }
@@ -33,6 +35,8 @@ public partial class WorldDbContext : DbContext
     public virtual DbSet<GameEventGameobjectQuest> GameEventGameobjectQuests { get; set; }
 
     public virtual DbSet<Gameobject> Gameobjects { get; set; }
+
+    public virtual DbSet<GameobjectLootTemplate> GameobjectLootTemplates { get; set; }
 
     public virtual DbSet<GameobjectQuestender> GameobjectQuestenders { get; set; }
 
@@ -55,6 +59,8 @@ public partial class WorldDbContext : DbContext
     public virtual DbSet<QuestTemplate> QuestTemplates { get; set; }
 
     public virtual DbSet<QuestTemplateAddon> QuestTemplateAddons { get; set; }
+
+    public virtual DbSet<ReferenceLootTemplate> ReferenceLootTemplates { get; set; }
 
     public virtual DbSet<SpellRank> SpellRanks { get; set; }
 
@@ -117,6 +123,20 @@ public partial class WorldDbContext : DbContext
             entity.HasKey(e => e.CreatureId).HasName("PRIMARY");
 
             entity.Property(e => e.CreatureId).ValueGeneratedNever();
+        });
+
+        modelBuilder.Entity<CreatureLootTemplate>(entity =>
+        {
+            entity.HasKey(e => new { e.Entry, e.Item, e.Reference, e.GroupId })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0, 0, 0 });
+
+            entity.ToTable("creature_loot_template", tb => tb.HasComment("Loot System"));
+
+            entity.Property(e => e.Chance).HasDefaultValueSql("'100'");
+            entity.Property(e => e.LootMode).HasDefaultValueSql("'1'");
+            entity.Property(e => e.MaxCount).HasDefaultValueSql("'1'");
+            entity.Property(e => e.MinCount).HasDefaultValueSql("'1'");
         });
 
         modelBuilder.Entity<CreatureQuestender>(entity =>
@@ -228,6 +248,20 @@ public partial class WorldDbContext : DbContext
                 .IsFixedLength();
             entity.Property(e => e.SpawnMask).HasDefaultValueSql("'1'");
             entity.Property(e => e.ZoneId).HasComment("Zone Identifier");
+        });
+
+        modelBuilder.Entity<GameobjectLootTemplate>(entity =>
+        {
+            entity.HasKey(e => new { e.Entry, e.Item })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+
+            entity.ToTable("gameobject_loot_template", tb => tb.HasComment("Loot System"));
+
+            entity.Property(e => e.Chance).HasDefaultValueSql("'100'");
+            entity.Property(e => e.LootMode).HasDefaultValueSql("'1'");
+            entity.Property(e => e.MaxCount).HasDefaultValueSql("'1'");
+            entity.Property(e => e.MinCount).HasDefaultValueSql("'1'");
         });
 
         modelBuilder.Entity<GameobjectQuestender>(entity =>
@@ -358,6 +392,20 @@ public partial class WorldDbContext : DbContext
 
             entity.Property(e => e.Id).ValueGeneratedNever();
             entity.Property(e => e.BreadcrumbForQuestId).HasDefaultValueSql("'0'");
+        });
+
+        modelBuilder.Entity<ReferenceLootTemplate>(entity =>
+        {
+            entity.HasKey(e => new { e.Entry, e.Item })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+
+            entity.ToTable("reference_loot_template", tb => tb.HasComment("Loot System"));
+
+            entity.Property(e => e.Chance).HasDefaultValueSql("'100'");
+            entity.Property(e => e.LootMode).HasDefaultValueSql("'1'");
+            entity.Property(e => e.MaxCount).HasDefaultValueSql("'1'");
+            entity.Property(e => e.MinCount).HasDefaultValueSql("'1'");
         });
 
         modelBuilder.Entity<SpellRank>(entity =>

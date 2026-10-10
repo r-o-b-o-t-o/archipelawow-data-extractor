@@ -100,7 +100,9 @@ public class QuestExtractorService(
         QuestSortContainer questSorts,
         QuestInfoContainer questInfos,
         WorldMapAreaContainer worldMapAreas,
-        FactionTemplateContainer factionTemplates
+        FactionTemplateContainer factionTemplates,
+        MapContainer maps,
+        DungeonEncounterContainer encounters
     )
 {
     private readonly JsonSerializerOptions jsonOptions = new()
@@ -182,6 +184,16 @@ public class QuestExtractorService(
     private const int QUEST_STATUS_REWARDED = 6;
 
     private const int CHR_RACE_FLAG_NOT_PLAYABLE = 0x1;
+
+    // Map.InstanceType, see DBCEnums.h
+    private const int MAP_INSTANCE = 1;
+
+    // instance_encounters.creditType
+    private const int ENCOUNTER_CREDIT_KILL_CREATURE = 0;
+
+    // gameobject_template.type values whose data1 is a gameobject_loot_template entry
+    private const int GAMEOBJECT_TYPE_CHEST = 3;
+    private const int GAMEOBJECT_TYPE_FISHINGHOLE = 25;
 
     private const int MAX_CHARACTER_LEVEL = 80;
 
@@ -347,6 +359,7 @@ public class QuestExtractorService(
         await FillCreatureZones(quests);
         await FillGameObjectZones(quests);
         await FillPOIZones(quests);
+        await FlagDungeonQuests(quests);
 
         quests = [.. quests
             .Where(q => FilterQuest(q, "disables", q => FilterDisables(questDisables, q)))
@@ -1236,6 +1249,166 @@ public class QuestExtractorService(
             "Run worldserver once with \"{option} = 1\" in worldserver.conf to populate the spawn tables, " +
             "otherwise most quests are extracted without zones.",
             resolvedCount, questGiverCount, source, coverage, configOption);
+    }
+
+    /// <summary>
+    /// Flags the quests that cannot be taken or turned in without entering a dungeon, on top of the ones
+    /// whose quest info says so: every starter, or every ender, is only found inside dungeons. A quest
+    /// giver is found where it spawns, and an item where the creatures and chests that drop it spawn.
+    /// Zones are no guide: the Deadmines zone holds the mine outside the instance, where "Oh Brother. . ."
+    /// is done.
+    /// </summary>
+    private async Task FlagDungeonQuests(List<ExtractedQuestData> quests)
+    {
+        var templates = quests.Select(q => q.QuestTemplate).ToList();
+        var itemIds = templates.SelectMany(t => t.ItemTemplateStarters.Select(item => item.Entry)).ToHashSet();
+
+        var itemsByReference = await GetItemsByReference(itemIds);
+        var referenceIds = itemsByReference.Keys.ToHashSet();
+
+        var creatureLoot = ExpandReferences(await db.CreatureLootTemplates
+            .Where(loot => (loot.Reference == 0 && itemIds.Contains(loot.Item)) || referenceIds.Contains(loot.Reference))
+            .Select(loot => new ValueTuple<uint, uint, int>(loot.Entry, loot.Item, loot.Reference))
+            .ToListAsync());
+        var gameObjectLoot = ExpandReferences(await db.GameobjectLootTemplates
+            .Where(loot => (loot.Reference == 0 && itemIds.Contains(loot.Item)) || referenceIds.Contains(loot.Reference))
+            .Select(loot => new ValueTuple<uint, uint, int>(loot.Entry, loot.Item, loot.Reference))
+            .ToListAsync());
+
+        var creatureLootIds = creatureLoot.Select(loot => loot.LootId).ToHashSet();
+        var lootingCreatures = await db.CreatureTemplates
+            .Where(creature => creatureLootIds.Contains(creature.Lootid))
+            .Select(creature => new { creature.Entry, creature.Lootid })
+            .ToListAsync();
+
+        var gameObjectLootIds = gameObjectLoot.Select(loot => (int)loot.LootId).ToHashSet();
+        var lootingGameObjects = await db.GameobjectTemplates
+            .Where(gobj => (gobj.Type == GAMEOBJECT_TYPE_CHEST || gobj.Type == GAMEOBJECT_TYPE_FISHINGHOLE) && gameObjectLootIds.Contains(gobj.Data1))
+            .Select(gobj => new { gobj.Entry, gobj.Data1 })
+            .ToListAsync();
+
+        var creatureIds = templates
+            .SelectMany(t => t.CreatureStarters.Select(s => s.Id).Concat(t.CreatureEnders.Select(e => e.Id)))
+            .Concat(lootingCreatures.Select(creature => creature.Entry))
+            .ToHashSet();
+        var gameObjectIds = templates
+            .SelectMany(t => t.GameObjectStarters.Select(s => s.Id).Concat(t.GameObjectEnders.Select(e => e.Id)))
+            .Concat(lootingGameObjects.Select(gobj => gobj.Entry))
+            .ToHashSet();
+
+        var creatureMaps = await GetCreatureMaps(creatureIds);
+        var gameObjectMaps = (await db.Gameobjects
+                .Where(spawn => gameObjectIds.Contains(spawn.Id))
+                .Select(spawn => new { spawn.Id, spawn.Map })
+                .ToListAsync())
+            .ToLookup(spawn => spawn.Id, spawn => (int)spawn.Map);
+
+        // Every map an item drops on; a source never placed anywhere adds none.
+        var itemMaps = creatureLoot
+            .Join(lootingCreatures, loot => loot.LootId, creature => creature.Lootid, (loot, creature) => (loot.Item, Maps: creatureMaps[creature.Entry]))
+            .Concat(gameObjectLoot.Join(lootingGameObjects, loot => (int)loot.LootId, gobj => gobj.Data1, (loot, gobj) => (loot.Item, Maps: gameObjectMaps[gobj.Entry])))
+            .SelectMany(source => source.Maps.Select(map => (source.Item, Map: map)))
+            .ToLookup(source => source.Item, source => source.Map);
+
+        foreach (var q in quests)
+        {
+            var t = q.QuestTemplate;
+            var starters = t.CreatureStarters.Select(s => creatureMaps[s.Id])
+                .Concat(t.GameObjectStarters.Select(s => gameObjectMaps[s.Id]))
+                .Concat(t.ItemTemplateStarters.Select(item => itemMaps[item.Entry]));
+            var enders = t.CreatureEnders.Select(e => creatureMaps[e.Id])
+                .Concat(t.GameObjectEnders.Select(e => gameObjectMaps[e.Id]));
+
+            if (AreAllInDungeons(starters) || AreAllInDungeons(enders))
+            {
+                q.IsDungeon = true;
+            }
+        }
+
+        // One also found outside, such as the item that starts "Find OOX-17/TN!", which world creatures in
+        // Tanaris drop as well as Zul'Farrak's, lets the player do without the dungeon. One found nowhere
+        // tells nothing either way.
+        bool AreAllInDungeons(IEnumerable<IEnumerable<int>> givers)
+        {
+            return givers.Any() && givers.All(giverMaps => giverMaps.Any() && giverMaps.All(map => maps.Get(map)?.InstanceType == MAP_INSTANCE));
+        }
+
+        List<(uint LootId, uint Item)> ExpandReferences(List<(uint Entry, uint Item, int Reference)> rows)
+        {
+            return [.. rows
+                .Where(row => row.Reference == 0)
+                .Select(row => (row.Entry, row.Item))
+                .Concat(rows
+                    .Where(row => row.Reference != 0)
+                    .SelectMany(row => itemsByReference.GetValueOrDefault(row.Reference, []).Select(item => (row.Entry, item))))];
+        }
+    }
+
+    /// <summary>
+    /// For every reference loot template that drops one of the given items, directly or through the
+    /// references it holds in turn, which nest several levels deep.
+    /// </summary>
+    private async Task<Dictionary<int, HashSet<uint>>> GetItemsByReference(HashSet<uint> itemIds)
+    {
+        var rows = await db.ReferenceLootTemplates
+            .Select(loot => new { loot.Entry, loot.Item, loot.Reference })
+            .ToListAsync();
+
+        var itemsByReference = rows
+            .Where(row => row.Reference == 0 && itemIds.Contains(row.Item))
+            .GroupBy(row => (int)row.Entry)
+            .ToDictionary(g => g.Key, g => g.Select(row => row.Item).ToHashSet());
+        var nested = rows.Where(row => row.Reference != 0).ToList();
+
+        bool changed;
+        do
+        {
+            changed = false;
+            foreach (var row in nested)
+            {
+                if (!itemsByReference.TryGetValue(row.Reference, out var items))
+                {
+                    continue;
+                }
+
+                var parentItems = itemsByReference.TryGetValue((int)row.Entry, out var existing)
+                    ? existing
+                    : itemsByReference[(int)row.Entry] = [];
+                int count = parentItems.Count;
+                parentItems.UnionWith(items);
+                changed |= parentItems.Count != count;
+            }
+        } while (changed);
+
+        return itemsByReference;
+    }
+
+    /// <summary>
+    /// The maps each creature spawns on. A boss a script summons, such as Mutanus the Devourer, who drops
+    /// the item that starts "The Glowing Shard", has no spawn and is placed through the dungeon encounter
+    /// that credits it instead.
+    /// </summary>
+    private async Task<ILookup<uint, int>> GetCreatureMaps(HashSet<uint> creatureIds)
+    {
+        var spawns = await db.Creatures
+            .Where(spawn => creatureIds.Contains(spawn.Id))
+            .Select(spawn => new { spawn.Id, spawn.Map })
+            .ToListAsync();
+        var spawned = spawns.Select(spawn => spawn.Id).ToHashSet();
+
+        var encounterMaps = (await db.InstanceEncounters
+                .Where(encounter => encounter.CreditType == ENCOUNTER_CREDIT_KILL_CREATURE && creatureIds.Contains(encounter.CreditEntry))
+                .Select(encounter => new { encounter.Entry, encounter.CreditEntry })
+                .ToListAsync())
+            .Where(encounter => !spawned.Contains(encounter.CreditEntry))
+            .Select(encounter => (Id: encounter.CreditEntry, Map: encounters.Get((int)encounter.Entry)?.MapID))
+            .Where(encounter => encounter.Map != null)
+            .Select(encounter => (encounter.Id, Map: encounter.Map.Value));
+
+        return spawns
+            .Select(spawn => (spawn.Id, Map: (int)spawn.Map))
+            .Concat(encounterMaps)
+            .ToLookup(spawn => spawn.Id, spawn => spawn.Map);
     }
 
     private async Task FillPOIZones(List<ExtractedQuestData> quests)

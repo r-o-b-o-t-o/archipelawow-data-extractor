@@ -129,8 +129,13 @@ set is stable.
 
 Dungeon quests are the one group that is kept despite needing a group, because whether they belong in a
 run is a player's call rather than the extractor's. They are marked with `isDungeon` instead, for
-ArchipelaWoW to include or exclude per option. Note that the quest data almost never sets
-`SuggestedGroupNum` on them, so `suggestedGroupSize` is `null` on virtually every one and is no
+ArchipelaWoW to include or exclude per option. Besides the quests whose quest info says Dungeon, this
+covers the ones whose every starter, or every ender, is only found inside dungeons: an NPC or object
+that only spawns there, such as Ysida Harmon, who hands out "Proof of Life" in Stratholme, or an item
+that only drops there, such as the letter Edwin VanCleef drops for "The Unsent Letter". A boss a script
+summons has no spawn and is placed through the dungeon encounter that credits it, which is how
+Mutanus the Devourer's Glowing Shard counts as Wailing Caverns. Note that the quest data almost never
+sets `SuggestedGroupNum` on them, so `suggestedGroupSize` is `null` on virtually every one and is no
 substitute for the flag.
 
 ### Output
@@ -597,7 +602,7 @@ and Defense, which no weapon master sells, its own from `SKILL_ICONS` in the sam
 
 Everything under [`Entities/`](Entities) is scaffolded from the world database and should not be edited
 by hand; the hand-written navigations and keys live in [`EntityExtensions/`](EntityExtensions) as
-partial classes instead. Only the 25 tables the extractor actually reads are generated. From the Visual
+partial classes instead. Only the 28 tables the extractor actually reads are generated. From the Visual
 Studio Package Manager Console:
 
 ```powershell
@@ -605,7 +610,7 @@ Scaffold-DbContext 'Host=localhost;User=root;Password=root;Database=acore_world'
   -Context WorldDbContext -NoOnConfiguring -DataAnnotations -Force `
   -ContextDir Entities -ContextNamespace ArchipelaWoW.DataExtractor.Entities `
   -OutputDir Entities/World -Namespace ArchipelaWoW.DataExtractor.Entities.World `
-  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills,conditions,gossip_menu_option,instance_encounters,areatrigger_teleport
+  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills,conditions,gossip_menu_option,instance_encounters,areatrigger_teleport,creature_loot_template,gameobject_loot_template,reference_loot_template
 ```
 
 Two things to know before running it:
