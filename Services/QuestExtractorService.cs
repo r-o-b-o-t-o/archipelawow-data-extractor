@@ -318,6 +318,15 @@ public class QuestExtractorService(
         1103,
     ];
 
+    // Quests started by an item that only drops rarely off world creatures, which would leave the player
+    // farming for hours.
+    private static readonly HashSet<uint> RARE_WORLD_DROP_QUESTS = [
+        // "Crystal in the Mountains": Pendant of Myzrael
+        635,
+        // "Find OOX-17/TN!", "Find OOX-09/HL!", "Find OOX-22/FE!": the OOX distress beacons
+        351, 485, 2766,
+    ];
+
     // Quests limited to one faction group even though the faction relations of their givers let the other
     // faction take them.
     private static readonly Dictionary<uint, int> FACTION_QUESTS = new()
@@ -382,7 +391,8 @@ public class QuestExtractorService(
             .Where(q => FilterQuest(q, "cloth donation", FilterClothDonation))
             .Where(q => FilterQuest(q, "learn to ride", FilterLearnToRide))
             .Where(q => FilterQuest(q, "unobtainable", FilterUnobtainable))
-            .Where(q => FilterQuest(q, "failsafe", FilterFailsafe))];
+            .Where(q => FilterQuest(q, "failsafe", FilterFailsafe))
+            .Where(q => FilterQuest(q, "rare world drop", FilterRareWorldDrop))];
 
         FilterUnavailablePrerequisites(quests);
         FillQuestDisplayTitles(quests);
@@ -754,6 +764,11 @@ public class QuestExtractorService(
     private bool FilterFailsafe(ExtractedQuestData q)
     {
         return !FAILSAFE_QUESTS.Contains(q.Id);
+    }
+
+    private bool FilterRareWorldDrop(ExtractedQuestData q)
+    {
+        return !RARE_WORLD_DROP_QUESTS.Contains(q.Id);
     }
 
     private void FilterUnavailablePrerequisites(List<ExtractedQuestData> quests)
