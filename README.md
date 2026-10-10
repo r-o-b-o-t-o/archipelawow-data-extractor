@@ -3,14 +3,15 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/r-o-b-o-t-o/archipelawow-data-extractor/build.yml?branch=master)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Generates the `data/quests.json`, `data/spells.json`, `data/skills.json`, `data/bosses.json` and
-`data/explorations.json` files consumed by [ArchipelaWoW](https://github.com/r-o-b-o-t-o/archipelawow),
-a custom APWorld for the [Archipelago](https://archipelago.gg) randomizer framework.
+Generates the `data/quests.json`, `data/spells.json`, `data/skills.json`, `data/bosses.json`,
+`data/explorations.json` and `data/glyphs.json` files consumed by
+[ArchipelaWoW](https://github.com/r-o-b-o-t-o/archipelawow), a custom APWorld for the
+[Archipelago](https://archipelago.gg) randomizer framework.
 
 The tool reads an [AzerothCore](https://www.azerothcore.org) world database and a 3.3.5a client's DBC
 files, works out which quests, which trainable spells, which skills, which dungeon bosses and which
-subzones make sense as randomizer locations, and writes each list as JSON. All five extracts are produced
-in one run.
+subzones make sense as randomizer locations, and which glyphs as items, and writes each list as JSON.
+All six extracts are produced in one run.
 
 It can also write the data and images of the tracker in the
 [ArchipelaWoW launcher](https://github.com/r-o-b-o-t-o/archipelawow-launcher): the world maps, where the
@@ -27,6 +28,7 @@ checks are on them, and icons, read from an extracted client as well.
 - [Skills](#skills)
 - [Bosses](#bosses)
 - [Explorations](#explorations)
+- [Glyphs](#glyphs)
 - [Tracker](#tracker)
 - [Regenerating the entity model](#regenerating-the-entity-model)
 - [Third-party data](#third-party-data)
@@ -92,9 +94,9 @@ works from both `dotnet run` and Visual Studio.
 dotnet run
 ```
 
-The tool logs every quest and boss it drops along with the reason, then writes `quests.json`,
-`spells.json`, `skills.json`, `bosses.json` and `explorations.json` to `OUT_DIR`, creating the directory
-if needed, and the tracker extracts to `TRACKER_OUT_DIR` when it is set.
+The tool logs every quest, boss and glyph it drops along with the reason, then writes `quests.json`,
+`spells.json`, `skills.json`, `bosses.json`, `explorations.json` and `glyphs.json` to `OUT_DIR`, creating
+the directory if needed, and the tracker extracts to `TRACKER_OUT_DIR` when it is set.
 
 Settings in `.env` take precedence over the environment, so set `OUT_DIR` and `TRACKER_OUT_DIR` in `.env`
 itself.
@@ -433,6 +435,44 @@ criteria:
 `name` is the criterion's, as the achievement shows it. `zone` is the `AreaTable.dbc` zone the
 subzone's areas lie in, which is the achievement's zone for all but the capitals some of them ask for:
 Elwynn Forest's lists Stormwind City, Terokkar Forest's Shattrath City.
+
+## Glyphs
+
+Glyphs are items in ArchipelaWoW: a seed puts the glyphs of the character's class in the pool, minus
+those its level cap never reaches, and the server module mails each one as the real item.
+
+### What becomes an entry
+
+Every glyph item (`item_template` class `16`) an Inscription recipe makes: a spell of the Inscription
+skill line in `SkillLineAbility.dbc` whose create-item effect names it. Whether it is major or minor comes
+from the `GlyphProperties.dbc` entry its use spell applies.
+
+Dropped along the way:
+
+- glyph items no recipe makes: NPC equipment, test and deprecated glyphs, the Glyph of Envenom and the
+  Glyph of the Bear Cub
+- Death Knight glyphs, the one class ArchipelaWoW does not randomize
+
+### Output
+
+`glyphs.json` is an array sorted by class, then major before minor, then by name:
+
+```json
+{
+  "id": 43420,
+  "name": "Glyph of Barbaric Insults",
+  "class": 1,
+  "type": "major",
+  "requiredLevel": 16
+}
+```
+
+| Field           | Meaning                                                                      |
+| --------------- | ---------------------------------------------------------------------------- |
+| `id`            | The `item_template` entry, which the server module mails.                    |
+| `class`         | The `ChrClasses.dbc` id of the one class that can use it.                    |
+| `type`          | `major` or `minor`.                                                          |
+| `requiredLevel` | The level the item can be used from, which the seed's level cap must reach. |
 
 ## Tracker
 

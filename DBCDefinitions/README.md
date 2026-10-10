@@ -12,7 +12,7 @@ copyright the WoWDBDefs contributors, and are licensed under the
 
 Only the definitions this project actually reads are vendored here: `Achievement`,
 `Achievement_Category`, `Achievement_Criteria`, `AreaTable`, `AreaTrigger`, `ChrClasses`, `ChrRaces`,
-`DungeonEncounter`, `FactionTemplate`, `ItemDisplayInfo`, `Map`, `QuestInfo`, `QuestSort`, `SkillLine`,
+`DungeonEncounter`, `FactionTemplate`, `GlyphProperties`, `ItemDisplayInfo`, `Map`, `QuestInfo`, `QuestSort`, `SkillLine`,
 `SkillLineAbility`, `SkillRaceClassInfo`, `Spell`, `SpellIcon`, `TaxiNodes`, `WorldMapArea`,
 `WorldMapContinent`, `WorldMapOverlay` and `WorldMapTransforms`. To add another, copy the
 matching `.dbd` from the upstream repository's `definitions/` directory — the build picks up every

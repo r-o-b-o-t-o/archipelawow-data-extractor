@@ -89,7 +89,8 @@ public static class ServiceCollectionExtensions
             .AddSingleton<AchievementContainer>()
             .AddSingleton<AchievementCategoryContainer>()
             .AddSingleton<AchievementCriteriaContainer>()
-            .AddSingleton<ItemDisplayInfoContainer>();
+            .AddSingleton<ItemDisplayInfoContainer>()
+            .AddSingleton<GlyphPropertiesContainer>();
     }
 
     public static IServiceCollection AddRepositories(this IServiceCollection services)

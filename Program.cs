@@ -28,6 +28,7 @@ public static class Program
         await scope.ServiceProvider.GetRequiredService<SkillExtractorService>().ExtractSkills();
         await scope.ServiceProvider.GetRequiredService<BossExtractorService>().ExtractBosses();
         await scope.ServiceProvider.GetRequiredService<ExplorationExtractorService>().ExtractExplorations();
+        await scope.ServiceProvider.GetRequiredService<GlyphExtractorService>().ExtractGlyphs();
         await scope.ServiceProvider.GetRequiredService<TrackerExtractorService>().ExtractTracker();
     }
 
@@ -77,6 +78,7 @@ public static class Program
             .AddTransient<SkillExtractorService>()
             .AddTransient<BossExtractorService>()
             .AddTransient<ExplorationExtractorService>()
+            .AddTransient<GlyphExtractorService>()
             .AddSingleton<ClientTextures>()
             .AddSingleton<WorldMapGeometry>()
             .AddTransient<TrackerMapExtractorService>()
