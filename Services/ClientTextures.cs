@@ -24,7 +24,7 @@ public sealed class ClientTextures
         if (root == null || !Directory.Exists(Path.Combine(root, "Interface")))
         {
             throw new InvalidOperationException(
-                "Client directory not found. Set CLIENT_DIRECTORY to an extracted client folder holding Interface, such as Data_enUS.");
+                "Client directory not found. Set CLIENT_DIRECTORY to an extracted client folder holding Interface, such as Data/enUS.");
         }
 
         string path = root;

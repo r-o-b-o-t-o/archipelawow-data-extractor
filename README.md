@@ -86,7 +86,7 @@ works from both `dotnet run` and Visual Studio.
 | `DBC_BUILD`         | no       | `3.3.5.12340`    | Client build the DBC files come from, used to pick the right column layout.         |
 | `DBC_LOCALE`        | no       | `enUS`           | Locale to read localised strings in.                                                |
 | `TRACKER_OUT_DIR`   | no       | —                | Directory the tracker extracts are written to: the launcher's `ui/public/tracker`. Skipped when unset. |
-| `CLIENT_DIRECTORY`  | with `TRACKER_OUT_DIR` | — | Extracted client folder holding `Interface`, such as `Data_enUS`.                 |
+| `CLIENT_DIRECTORY`  | with `TRACKER_OUT_DIR` | — | Extracted client folder holding `Interface`, such as `Data/enUS`.                 |
 
 ## Running
 
