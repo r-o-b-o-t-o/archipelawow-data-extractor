@@ -249,7 +249,7 @@ public partial class TrackerExtractorService(
 
     /// <summary>
     /// Where the quests of quests.json are picked up: their quest givers' spawns, or where they're turned in
-    /// for the quests that only start from an item.
+    /// for the quests that only start from an item. And the level they can be taken on from.
     /// </summary>
     private async Task ExtractQuests(string outDir, string dataDir, Dictionary<int, MapPosition> entrances, ILookup<int, PlacedSpawn> spawns)
     {
@@ -274,6 +274,12 @@ public partial class TrackerExtractorService(
             .Select(g => new { g.Id, Spawn = new Spawn(g.Map, g.ZoneId, g.AreaId, g.PositionX, g.PositionY) }).ToListAsync())
             .ToLookup(g => g.Id, g => g.Spawn);
         var creatureSides = await GetCreatureSides(creatureIds);
+        // The level the quest log shows a quest orange from (GetQuestDifficultyColor in FrameXML's UIParent.lua),
+        // as archipelawow only expects it at its recommended level, two levels later. A quest whose level follows
+        // the player's is never orange: it can be taken on from its minimum level.
+        var doableLevels = (await db.QuestTemplates.Where(q => questIds.Contains(q.Id))
+            .Select(q => new { q.Id, q.QuestLevel, q.MinLevel }).ToListAsync())
+            .ToDictionary(q => q.Id, q => q.QuestLevel > 0 ? Math.Max(q.QuestLevel - 4, q.MinLevel) : q.MinLevel);
 
         var mapsByArea = geometry.Zones.ToDictionary(area => area.AreaID, area => area.ID);
 
@@ -282,6 +288,7 @@ public partial class TrackerExtractorService(
         foreach (var quest in quests)
         {
             uint id = (uint)quest["id"].GetValue<int>();
+            int doableLevel = doableLevels[id];
             var givers = Spots(creatureStarters[id], gameObjectStarters[id]);
             bool atEnder = givers.Count == 0;
             if (atEnder)
@@ -291,21 +298,18 @@ public partial class TrackerExtractorService(
 
             if (givers.Count > 0)
             {
-                result[(int)id] = new { Givers = givers, AtEnder = atEnder ? true : (bool?)null };
+                result[(int)id] = new { Givers = givers, AtEnder = atEnder ? true : (bool?)null, DoableLevel = doableLevel };
                 continue;
             }
 
             // Left to the zone the quest log files it under, if it has a map
             unplaced++;
             int? zoneMap = quest["questSortArea"]?["id"]?.GetValue<int>() is int zone && mapsByArea.TryGetValue(zone, out int mapId) ? mapId : null;
-            if (zoneMap != null)
-            {
-                result[(int)id] = new { Map = zoneMap };
-            }
+            result[(int)id] = new { Map = zoneMap, DoableLevel = doableLevel };
         }
 
         Write(outDir, "quests.json", result);
-        logger.LogInformation("Wrote the quest givers of {count} quests, {unplaced} of them without a spot.", result.Count, unplaced);
+        logger.LogInformation("Wrote {count} quests, {unplaced} of them without a spot.", result.Count, unplaced);
 
         List<object[]> Spots(IEnumerable<uint> creatures, IEnumerable<uint> gameObjects)
         {

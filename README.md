@@ -495,7 +495,7 @@ Everything goes to `TRACKER_OUT_DIR`, images as WebP:
 | `maps.json`        | The maps, from the cosmic map down to the cities                                          |
 | `maps/`            | Each map put together from its tiles, fully explored                                      |
 | `highlights/`      | What lights up on a map when the pointer is over one of its children                      |
-| `quests.json`      | Where each quest is picked up                                                             |
+| `quests.json`      | Where each quest is picked up, and the level it can be done from                          |
 | `flightpaths.json` | The flight masters, by `TaxiNodes.dbc` id: the taxi nodes with one standing by            |
 | `dungeons.json`    | The 5-player dungeons' entrances and encounters, by `Map.dbc` id                          |
 | `explorations.json` | Where each subzone is, and its achievement's icon, by `Achievement_Criteria.dbc` id      |
@@ -521,13 +521,15 @@ placed at its entrance.
 `quests.json` is keyed by quest id. `givers` lists where the quest givers spawn, up to 12 spots, with a
 fourth element when only one side can talk to the giver: `1` Alliance, `2` Horde. A quest started by an
 item has `"atEnder": true` and lists where it is turned in instead. A quest with neither has its zone's
-map as `map`, when it has one:
+map as `map`, when it has one. `doableLevel` is the level the quest can be done from in-game: the level
+the quest log shows it orange from, four under its `QuestLevel` and never under its `minLevel`, or its
+`minLevel` when its level follows the player's.
 
 ```json
 {
-  "2": { "givers": [[43, 0.7378, 0.6146, 2]], "atEnder": true },
-  "7": { "givers": [[30, 0.4892, 0.4161, 1]] },
-  "9418": { "map": 465 }
+  "2": { "givers": [[43, 0.7378, 0.6146, 2]], "atEnder": true, "doableLevel": 26 },
+  "7": { "givers": [[30, 0.4892, 0.4161, 1]], "doableLevel": 1 },
+  "9418": { "map": 465, "doableLevel": 60 }
 }
 ```
 
