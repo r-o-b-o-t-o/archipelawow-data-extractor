@@ -89,9 +89,15 @@ public partial class TrackerExtractorService(
     private const byte ITEM_CLASS_GLYPH = 16;
     private const byte ITEM_QUALITY_HEIRLOOM = 7;
 
+    // The consumables mod-i-found-your-sword repurposes for archipelawow's filler: the Scroll of Divination,
+    // the Tome of Insight and the Enduring Soulstone. They keep their Item.dbc display, so the database's
+    // rows give their icons whether or not the module's updates are applied.
+    private static readonly uint[] CONSUMABLE_ITEMS = [4427, 1335, 2767];
+
     /// <summary>
-    /// Icons for what the extracts carry none for: the tracker's progressive items, gold and random gear, and the
-    /// zone items whose icon no extracted achievement has (the zones of archipelawow's items/zones.py).
+    /// Icons for what the extracts carry none for: the tracker's progressive items, gold, random gear and Archipelago
+    /// Stone unlocks, and the zone items whose icon no extracted achievement has (the zones of archipelawow's
+    /// items/zones.py).
     /// </summary>
     private static readonly string[] TRACKER_ICONS = [
         "Ability_Rogue_Sprint",
@@ -104,6 +110,7 @@ public partial class TrackerExtractorService(
         "INV_Chest_Chain_05",
         "INV_Jewelry_Ring_03",
         "INV_Misc_QuestionMark",
+        "Achievement_Reputation_01",
         "Spell_Arcane_TeleportDarnassus",
         "Spell_Arcane_TeleportExodar",
         "Spell_Arcane_TeleportIronForge",
@@ -516,7 +523,8 @@ public partial class TrackerExtractorService(
     private async Task ExtractItems(string outDir, HashSet<string> icons)
     {
         var items = await db.ItemTemplates
-            .Where(i => i.Class == ITEM_CLASS_GLYPH || i.Quality == ITEM_QUALITY_HEIRLOOM || (i.Class == ITEM_CLASS_CONTAINER && i.Subclass == ITEM_SUBCLASS_BAG))
+            .Where(i => i.Class == ITEM_CLASS_GLYPH || i.Quality == ITEM_QUALITY_HEIRLOOM || (i.Class == ITEM_CLASS_CONTAINER && i.Subclass == ITEM_SUBCLASS_BAG)
+                || CONSUMABLE_ITEMS.Contains(i.Entry))
             .Select(i => new { i.Entry, i.Displayid })
             .ToListAsync();
 
