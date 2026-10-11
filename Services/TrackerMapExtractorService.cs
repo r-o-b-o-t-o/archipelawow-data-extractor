@@ -175,7 +175,8 @@ public class TrackerMapExtractorService(
             result.Add(map);
         }
 
-        // A city's map opens from its zone, through the zone's explored area that covers it
+        // A city's map opens from its zone, through the zone's explored area that covers it: the one listing the
+        // city's area, or named after the city, as Dun Morogh's Gates of Ironforge
         var cityOverlays = overlays
             .Where(overlay => overlay.TextureName.Length > 0)
             .SelectMany(overlay => overlay.AreaID.Where(id => id != 0).Select(id => (Area: id, Overlay: overlay)))
@@ -187,7 +188,9 @@ public class TrackerMapExtractorService(
         {
             var bounds = geometry.DisplayBounds(zone);
             var continent = continentsByMap[geometry.DisplayMap(zone)];
-            var cityOverlay = cityOverlays.GetValueOrDefault(zone.AreaID)?.FirstOrDefault(overlay => overlay.MapAreaID != zone.ID && zoneIds.Contains(overlay.MapAreaID));
+            var cityOverlay = cityOverlays.GetValueOrDefault(zone.AreaID)?.FirstOrDefault(overlay => overlay.MapAreaID != zone.ID && zoneIds.Contains(overlay.MapAreaID))
+                ?? overlays.FirstOrDefault(overlay => overlay.MapAreaID != zone.ID && zoneIds.Contains(overlay.MapAreaID)
+                    && overlay.TextureName.Equals(zone.AreaName, StringComparison.OrdinalIgnoreCase));
 
             var map = new TrackerMap()
             {

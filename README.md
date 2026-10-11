@@ -579,7 +579,8 @@ maps that file has no row for: `0` for Azeroth's world map and `-1` for the cosm
 
 The images and placements come from the client. A zone's highlight is the game's `<zone>Highlight`
 texture, stretched over the zone's bounds on its continent. A city opens from its zone, through the
-zone's explored area that covers it, which lights up as the game has no highlight for it. The cosmic
+zone's explored area that covers it, which lights up as the game has no highlight for it: the one
+listing the city's area, or named after it, as Dun Morogh's Gates of Ironforge. The cosmic
 map's two buttons are read from FrameXML's `WorldMapFrame.xml`. A continent's zones come from its `.zmp`,
 the game's grid of `AreaTable.dbc` ids over the continent, half an ADT tile per cell, which it reads the
 zone under the pointer from, on a zone's map too: Hrothgar's Landing came after Northrend's, and takes
