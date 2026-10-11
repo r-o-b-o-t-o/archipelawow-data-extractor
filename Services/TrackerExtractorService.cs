@@ -277,9 +277,13 @@ public partial class TrackerExtractorService(
         // The level the quest log shows a quest orange from (GetQuestDifficultyColor in FrameXML's UIParent.lua),
         // as archipelawow only expects it at its recommended level, two levels later. A quest whose level follows
         // the player's is never orange: it can be taken on from its minimum level.
-        var doableLevels = (await db.QuestTemplates.Where(q => questIds.Contains(q.Id))
+        var ownLevels = (await db.QuestTemplates.Where(q => questIds.Contains(q.Id))
             .Select(q => new { q.Id, q.QuestLevel, q.MinLevel }).ToListAsync())
             .ToDictionary(q => q.Id, q => q.QuestLevel > 0 ? Math.Max(q.QuestLevel - 4, q.MinLevel) : q.MinLevel);
+        var prerequisites = quests.ToDictionary(
+            q => (uint)q["id"].GetValue<int>(),
+            q => (All: Ids(q["requiresAll"]), Any: Ids(q["requiresAny"])));
+        var doableLevels = new Dictionary<uint, int>();
 
         var mapsByArea = geometry.Zones.ToDictionary(area => area.AreaID, area => area.ID);
 
@@ -288,7 +292,7 @@ public partial class TrackerExtractorService(
         foreach (var quest in quests)
         {
             uint id = (uint)quest["id"].GetValue<int>();
-            int doableLevel = doableLevels[id];
+            int doableLevel = DoableLevel(id, []);
             var givers = Spots(creatureStarters[id], gameObjectStarters[id]);
             bool atEnder = givers.Count == 0;
             if (atEnder)
@@ -310,6 +314,29 @@ public partial class TrackerExtractorService(
 
         Write(outDir, "quests.json", result);
         logger.LogInformation("Wrote {count} quests, {unplaced} of them without a spot.", result.Count, unplaced);
+
+        static List<uint> Ids(JsonNode node) => node?.AsArray().Select(id => (uint)id.GetValue<int>()).ToList() ?? [];
+
+        // A quest can only be taken on once its chain can: like archipelawow's levels, this is the highest level of
+        // the prerequisites that are all needed, and of the cheapest of those of which one is enough
+        int DoableLevel(uint id, HashSet<uint> chain)
+        {
+            if (doableLevels.TryGetValue(id, out int cached))
+            {
+                return cached;
+            }
+
+            if (!chain.Add(id) || !ownLevels.TryGetValue(id, out int level))
+            {
+                return 0;
+            }
+
+            var (all, any) = prerequisites.GetValueOrDefault(id, ([], []));
+            level = Math.Max(level, all.Select(p => DoableLevel(p, chain)).DefaultIfEmpty(0).Max());
+            level = Math.Max(level, any.Select(p => DoableLevel(p, chain)).DefaultIfEmpty(0).Min());
+            chain.Remove(id);
+            return doableLevels[id] = level;
+        }
 
         List<object[]> Spots(IEnumerable<uint> creatures, IEnumerable<uint> gameObjects)
         {

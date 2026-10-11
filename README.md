@@ -523,7 +523,8 @@ fourth element when only one side can talk to the giver: `1` Alliance, `2` Horde
 item has `"atEnder": true` and lists where it is turned in instead. A quest with neither has its zone's
 map as `map`, when it has one. `doableLevel` is the level the quest can be done from in-game: the level
 the quest log shows it orange from, four under its `QuestLevel` and never under its `minLevel`, or its
-`minLevel` when its level follows the player's.
+`minLevel` when its level follows the player's. It is raised to that of its prerequisites the way
+archipelawow raises the quest's level: the highest of `requiresAll`, and the lowest of `requiresAny`.
 
 ```json
 {
