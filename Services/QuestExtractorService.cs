@@ -327,6 +327,23 @@ public class QuestExtractorService(
         351, 485, 2766,
     ];
 
+    // The Dungeon Set 2 (Tier 0.5) upgrade chains, hours of farming and dungeon runs. Each covers every
+    // class and faction version, and the stray "Anthion's Parting Words" without a giver (9030).
+    private static readonly HashSet<uint> DUNGEON_SET_2_QUESTS = [
+        // Wrists: "An Earnest Proposition"
+        8905, 8906, 8907, 8908, 8909, 8910, 8911, 8912, 8913, 8914, 8915, 8916, 8917, 8918, 8919, 8920, 10492, 10493,
+        // Belt and gloves: "A Supernatural Device" to "Just Compensation"
+        8921, 8922, 8923, 8924, 8925, 8926, 8927, 8928, 8931, 8932, 8933, 8934, 8935, 8936, 8937, 8938, 8939, 8940,
+        8941, 8942, 8943, 8944, 8977, 8978, 10494, 10495,
+        // Legs, shoulders and boots: "In Search of Anthion" to "Anthion's Parting Words"
+        8929, 8930, 8945, 8946, 8947, 8948, 8949, 8950, 8951, 8952, 8953, 8954, 8955, 8956, 8957, 8958, 8959, 9015,
+        9016, 9017, 9018, 9019, 9020, 9021, 9022, 9030, 10496, 10497,
+        // Helm and chest: "Bodley's Unfortunate Fate" to "Saving the Best for Last"
+        8960, 8961, 8962, 8963, 8964, 8965, 8966, 8967, 8968, 8969, 8970, 8985, 8986, 8987, 8988, 8989, 8990, 8991,
+        8992, 8994, 8995, 8996, 8997, 8998, 8999, 9000, 9001, 9002, 9003, 9004, 9005, 9006, 9007, 9008, 9009, 9010,
+        9011, 9012, 9013, 9014, 9032, 10498, 10499,
+    ];
+
     // Quests limited to one faction group even though the faction relations of their givers let the other
     // faction take them.
     private static readonly Dictionary<uint, int> FACTION_QUESTS = new()
@@ -392,7 +409,8 @@ public class QuestExtractorService(
             .Where(q => FilterQuest(q, "learn to ride", FilterLearnToRide))
             .Where(q => FilterQuest(q, "unobtainable", FilterUnobtainable))
             .Where(q => FilterQuest(q, "failsafe", FilterFailsafe))
-            .Where(q => FilterQuest(q, "rare world drop", FilterRareWorldDrop))];
+            .Where(q => FilterQuest(q, "rare world drop", FilterRareWorldDrop))
+            .Where(q => FilterQuest(q, "dungeon set 2", FilterDungeonSet2))];
 
         FilterUnavailablePrerequisites(quests);
         FillQuestDisplayTitles(quests);
@@ -769,6 +787,11 @@ public class QuestExtractorService(
     private bool FilterRareWorldDrop(ExtractedQuestData q)
     {
         return !RARE_WORLD_DROP_QUESTS.Contains(q.Id);
+    }
+
+    private bool FilterDungeonSet2(ExtractedQuestData q)
+    {
+        return !DUNGEON_SET_2_QUESTS.Contains(q.Id);
     }
 
     private void FilterUnavailablePrerequisites(List<ExtractedQuestData> quests)
