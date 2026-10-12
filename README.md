@@ -123,8 +123,10 @@ on any character the run allows. Quests are dropped when they are:
   riding-skill quests, quests whose giver only a profession brings out, quests no player can get (or
   only during a window that never comes back), failsafe quests that only give back what a player
   lost or missed earlier in a chain, such as "Replacement Phial", quests started by an item that
-  only drops rarely off world creatures, such as the OOX distress beacons, and the Dungeon Set 2
-  (Tier 0.5) upgrade chains
+  only drops rarely off world creatures, such as the OOX distress beacons, quests started by an item
+  only a raid boss drops, endgame chains that take hours of farming and dungeon runs, such as the
+  Dungeon Set 2 (Tier 0.5) upgrades and Quel'Delar, and chains that only lead to a key or attunement
+  the run never needs, such as the Karazhan attunement
 
 Finally, quests whose prerequisites did not survive the filters are dropped too, repeatedly, until the
 set is stable.

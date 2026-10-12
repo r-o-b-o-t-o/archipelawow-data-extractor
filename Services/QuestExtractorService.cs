@@ -327,9 +327,23 @@ public class QuestExtractorService(
         351, 485, 2766,
     ];
 
-    // The Dungeon Set 2 (Tier 0.5) upgrade chains, hours of farming and dungeon runs. Each covers every
-    // class and faction version, and the stray "Anthion's Parting Words" without a giver (9030).
-    private static readonly HashSet<uint> DUNGEON_SET_2_QUESTS = [
+    // Quests started by an item that only drops off a raid boss.
+    private static readonly HashSet<uint> RAID_DROP_QUESTS = [
+        // "The Ancient Leaf", "Stave of the Ancients": Ancient Petrified Leaf, from Molten Core
+        7632, 7636,
+        // "A Bijou for Zanza": a Hakkari Bijou, from Zul'Gurub
+        8240,
+        // "The Fall of Magtheridon", "Kael'thas and the Verdant Sphere"
+        11002, 11003, 11007,
+        // "The Key to the Focusing Iris", "The Heroic Key to the Focusing Iris": Sapphiron, in Naxxramas
+        13372, 13375,
+        // "A Most Puzzling Circumstance": Head of Onyxia
+        24428, 24429,
+    ];
+
+    // Endgame chains that take hours of farming and dungeon runs. Each covers every class and faction version.
+    private static readonly HashSet<uint> ENDGAME_CHAIN_QUESTS = [
+        // The Dungeon Set 2 (Tier 0.5) upgrades, and the stray "Anthion's Parting Words" without a giver (9030)
         // Wrists: "An Earnest Proposition"
         8905, 8906, 8907, 8908, 8909, 8910, 8911, 8912, 8913, 8914, 8915, 8916, 8917, 8918, 8919, 8920, 10492, 10493,
         // Belt and gloves: "A Supernatural Device" to "Just Compensation"
@@ -342,6 +356,30 @@ public class QuestExtractorService(
         8960, 8961, 8962, 8963, 8964, 8965, 8966, 8967, 8968, 8969, 8970, 8985, 8986, 8987, 8988, 8989, 8990, 8991,
         8992, 8994, 8995, 8996, 8997, 8998, 8999, 9000, 9001, 9002, 9003, 9004, 9005, 9006, 9007, 9008, 9009, 9010,
         9011, 9012, 9013, 9014, 9032, 10498, 10499,
+        // Chromatic armor: "The Matron Protectorate" to "Breastplate of the Chromatic Flight" and "Legplates
+        // of the Chromatic Defier"
+        5160, 5161, 5162, 5164, 5166, 5167,
+        // "Material Assistance", "The Darkreaver Menace": an Azerothian Diamond and a Pristine Black Diamond
+        7667, 8258,
+        // Quel'Delar: "The Battered Hilt", a rare drop in the Icecrown 5-player dungeons, to "A Victory For The
+        // Silver Covenant" and "A Victory For The Sunreavers"
+        14443, 14444, 14457, 20438, 20439, 24454, 24461, 24476, 24480, 24522, 24535, 24553, 24595, 24795, 24796,
+        24451, 24554, 24555, 24556, 24557, 24558, 24559, 24560, 24561, 24562, 24563, 24564, 24594, 24596, 24598,
+        24798, 24799, 24800, 24801,
+    ];
+
+    // Chains that only lead to a key or attunement the run never needs.
+    private static readonly HashSet<uint> UNNEEDED_ATTUNEMENT_QUESTS = [
+        // Karazhan, which archipelawow leaves out: "Arcane Disturbances" to "The Violet Eye"
+        9824, 9825, 9826, 9829, 9831, 9832, 9836, 9837, 9838,
+        // Tempest Keep, which archipelawow leaves out: "The Hand of Gul'dan" to "The Tempest Key"
+        10458, 10480, 10481, 10513, 10514, 10515, 10519, 10521, 10522, 10523, 10527, 10528, 10537, 10540, 10541,
+        10546, 10547, 10550, 10570, 10576, 10577, 10578, 10579, 10588, 10680, 10681, 10883,
+        // The Skeleton Key, which archipelawow gives out with Scholomance: "Scholomance" to "The Key to
+        // Scholomance"
+        838, 964, 5505, 5511, 5514, 5533, 5537, 5538, 5801, 5802, 5803, 5804,
+        // "Seal of Ascension": the Upper Blackrock Spire door it opened is gone in Wrath
+        4742, 4743,
     ];
 
     // Quests limited to one faction group even though the faction relations of their givers let the other
@@ -410,7 +448,9 @@ public class QuestExtractorService(
             .Where(q => FilterQuest(q, "unobtainable", FilterUnobtainable))
             .Where(q => FilterQuest(q, "failsafe", FilterFailsafe))
             .Where(q => FilterQuest(q, "rare world drop", FilterRareWorldDrop))
-            .Where(q => FilterQuest(q, "dungeon set 2", FilterDungeonSet2))];
+            .Where(q => FilterQuest(q, "raid drop", FilterRaidDrop))
+            .Where(q => FilterQuest(q, "endgame chain", FilterEndgameChain))
+            .Where(q => FilterQuest(q, "unneeded attunement", FilterUnneededAttunement))];
 
         FilterUnavailablePrerequisites(quests);
         FillQuestDisplayTitles(quests);
@@ -789,9 +829,19 @@ public class QuestExtractorService(
         return !RARE_WORLD_DROP_QUESTS.Contains(q.Id);
     }
 
-    private bool FilterDungeonSet2(ExtractedQuestData q)
+    private bool FilterRaidDrop(ExtractedQuestData q)
     {
-        return !DUNGEON_SET_2_QUESTS.Contains(q.Id);
+        return !RAID_DROP_QUESTS.Contains(q.Id);
+    }
+
+    private bool FilterEndgameChain(ExtractedQuestData q)
+    {
+        return !ENDGAME_CHAIN_QUESTS.Contains(q.Id);
+    }
+
+    private bool FilterUnneededAttunement(ExtractedQuestData q)
+    {
+        return !UNNEEDED_ATTUNEMENT_QUESTS.Contains(q.Id);
     }
 
     private void FilterUnavailablePrerequisites(List<ExtractedQuestData> quests)
