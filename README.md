@@ -4,14 +4,14 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Generates the `data/quests.json`, `data/spells.json`, `data/skills.json`, `data/bosses.json`,
-`data/explorations.json` and `data/glyphs.json` files consumed by
+`data/explorations.json`, `data/glyphs.json` and `data/leaders.json` files consumed by
 [ArchipelaWoW](https://github.com/r-o-b-o-t-o/archipelawow), a custom APWorld for the
 [Archipelago](https://archipelago.gg) randomizer framework.
 
 The tool reads an [AzerothCore](https://www.azerothcore.org) world database and a 3.3.5a client's DBC
 files, works out which quests, which trainable spells, which skills, which dungeon bosses and which
-subzones make sense as randomizer locations, and which glyphs as items, and writes each list as JSON.
-All six extracts are produced in one run.
+subzones make sense as randomizer locations, and which glyphs as items, and writes each list as JSON,
+along with the faction leaders to greet. All seven extracts are produced in one run.
 
 It can also write the data and images of the tracker in the
 [ArchipelaWoW launcher](https://github.com/r-o-b-o-t-o/archipelawow-launcher): the world maps, where the
@@ -29,6 +29,7 @@ checks are on them, and icons, read from an extracted client as well.
 - [Bosses](#bosses)
 - [Explorations](#explorations)
 - [Glyphs](#glyphs)
+- [Leaders](#leaders)
 - [Tracker](#tracker)
 - [Regenerating the entity model](#regenerating-the-entity-model)
 - [Third-party data](#third-party-data)
@@ -95,7 +96,7 @@ dotnet run
 ```
 
 The tool logs every quest, boss and glyph it drops along with the reason, then writes `quests.json`,
-`spells.json`, `skills.json`, `bosses.json`, `explorations.json` and `glyphs.json` to `OUT_DIR`, creating
+`spells.json`, `skills.json`, `bosses.json`, `explorations.json`, `glyphs.json` and `leaders.json` to `OUT_DIR`, creating
 the directory if needed, and the tracker extracts to `TRACKER_OUT_DIR` when it is set.
 
 Settings in `.env` take precedence over the environment, so set `OUT_DIR` and `TRACKER_OUT_DIR` in `.env`
@@ -483,13 +484,40 @@ Dropped along the way:
 | `type`          | `major` or `minor`.                                                          |
 | `requiredLevel` | The level the item can be used from, which the seed's level cap must reach. |
 
+## Leaders
+
+Greeting one of the character's faction leaders with `/hi` or `/salute` is a location in ArchipelaWoW. A
+leader is a creature entry, which the server module checks the location on when the character greets it.
+
+### What becomes an entry
+
+The eight faction leaders, listed by hand in the extractor (`LEADERS`): King Varian Wrynn, King Magni
+Bronzebeard, Tyrande Whisperwind and Prophet Velen for the Alliance, Thrall, Cairne Bloodhoof, Lady
+Sylvanas Windrunner and Lor'themar Theron for the Horde. A leader with no spawn whose zone is known is
+dropped, with a warning.
+
+### Output
+
+`leaders.json` is an array in that order, the Alliance's leaders then the Horde's:
+
+```json
+{
+  "id": 29611,
+  "name": "King Varian Wrynn",
+  "zone": { "id": 1519, "name": "Stormwind City" }
+}
+```
+
+`name` is the `creature_template` name, which ArchipelaWoW names the location after. `zone` is the
+`AreaTable.dbc` zone of the leader's spawn: its capital, whose zone item the location asks for.
+
 ## Tracker
 
 The launcher's tracker shows a seed's checks on the game's world maps. The rules come from the seed
 itself, which carries them in its slot data; what the extractor writes is everything else: the maps,
-where the checks of `quests.json`, `spells.json`, `bosses.json` and `explorations.json` are on them, and
-the icons to draw them and those of `skills.json` with. It reads those five extracts back from `OUT_DIR`,
-so they are written first.
+where the checks of `quests.json`, `spells.json`, `bosses.json`, `explorations.json` and `leaders.json`
+are on them, and the icons to draw them and those of `skills.json` with. It reads those six extracts back
+from `OUT_DIR`, so they are written first.
 
 Everything goes to `TRACKER_OUT_DIR`, images as WebP:
 
@@ -500,6 +528,7 @@ Everything goes to `TRACKER_OUT_DIR`, images as WebP:
 | `highlights/`      | What lights up on a map when the pointer is over one of its children                      |
 | `quests.json`      | Where each quest is picked up, and the level it can be done from                          |
 | `flightpaths.json` | The flight masters, by `TaxiNodes.dbc` id: the taxi nodes with one standing by            |
+| `leaders.json`     | Where the faction leaders stand, and the icon of the achievement for killing them, by creature entry |
 | `dungeons.json`    | The 5-player dungeons' entrances and encounters, by `Map.dbc` id                          |
 | `explorations.json` | Where each subzone is, and its achievement's icon, by `Achievement_Criteria.dbc` id      |
 | `spells.json`      | The spells' icons                                                                         |

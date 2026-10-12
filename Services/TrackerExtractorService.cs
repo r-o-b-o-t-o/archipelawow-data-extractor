@@ -15,8 +15,8 @@ namespace ArchipelaWoW.DataExtractor.Services;
 
 /// <summary>
 /// Writes what the launcher's tracker shows that archipelawow doesn't need: where its checks are on the world
-/// maps, and the icons and images to draw them with. Covers the quests, spells, skills, bosses and subzones of the
-/// extracts in OUT_DIR, which are therefore written first.
+/// maps, and the icons and images to draw them with. Covers the quests, spells, skills, bosses, subzones and faction
+/// leaders of the extracts in OUT_DIR, which are therefore written first.
 /// </summary>
 public partial class TrackerExtractorService(
         ILogger<TrackerExtractorService> logger,
@@ -163,6 +163,7 @@ public partial class TrackerExtractorService(
         var entrances = await ExtractDungeons(outDir, dataDir, spawns);
         await ExtractQuests(outDir, dataDir, entrances, spawns);
         await ExtractFlightPaths(outDir, spawns);
+        await ExtractLeaders(outDir, dataDir, spawns, icons);
         ExtractSpells(outDir, dataDir, icons);
         ExtractSkills(outDir, dataDir, icons);
         ExtractExplorations(outDir, dataDir, icons);
@@ -425,6 +426,42 @@ public partial class TrackerExtractorService(
 
         Write(outDir, "flightpaths.json", result);
         logger.LogInformation("Wrote {count} flight paths.", result.Count);
+    }
+
+    /// <summary>Where the faction leaders of leaders.json stand, with the icon of the achievement for killing them.</summary>
+    private async Task ExtractLeaders(string outDir, string dataDir, ILookup<int, PlacedSpawn> spawns, HashSet<string> icons)
+    {
+        var leaders = ReadIds(dataDir, "leaders.json").Select(id => (uint)id).ToList();
+        var leaderSpawns = (await db.Creatures.Where(c => leaders.Contains(c.Id))
+            .Select(c => new { c.Id, Spawn = new Spawn(c.Map, c.ZoneId, c.AreaId, c.PositionX, c.PositionY) }).ToListAsync())
+            .ToLookup(c => c.Id, c => c.Spawn);
+        var killAchievements = achievementCriteria
+            .Where(c => c.Type == ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE)
+            .ToLookup(c => (uint)c.AssetID, c => c.AchievementID);
+
+        var result = new SortedDictionary<int, object>();
+        foreach (uint leader in leaders)
+        {
+            var position = leaderSpawns[leader]
+                .Where(spawn => WorldMapGeometry.CONTINENT_MAPS.Contains(spawn.Map))
+                .Select(spawn => LocateSpawn(spawn) ?? LocateNear(spawns, spawn.Map, spawn.X, spawn.Y))
+                .FirstOrDefault(p => p != null);
+            if (position == null)
+            {
+                logger.LogWarning("Found no spot for the faction leader {id}.", leader);
+                continue;
+            }
+
+            int achievement = killAchievements[leader].DefaultIfEmpty(0).Min();
+            result[(int)leader] = new
+            {
+                Position = position.Value.ToJson(),
+                Icon = Icon(spellIcons.Get(achievements.Get(achievement)?.IconID ?? 0)?.TextureFilename, icons),
+            };
+        }
+
+        Write(outDir, "leaders.json", result);
+        logger.LogInformation("Wrote {count} faction leaders.", result.Count);
     }
 
     private void ExtractSpells(string outDir, string dataDir, HashSet<string> icons)
