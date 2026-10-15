@@ -631,7 +631,7 @@ for few of the classic and Outland dungeons' own, which take that of the encount
 (`instance_encounters`) instead. `items.json` covers the glyphs, bags, heirlooms and the consumables mod-i-found-your-sword repurposes
 (`CONSUMABLE_ITEMS`). The icons no extract names are listed in `TRACKER_ICONS` in
 [`TrackerExtractorService`](Services/TrackerExtractorService.cs): the progressive items', gold's, random
-gear's and the Archipelago Stone unlocks', and those of the zone items no achievement lends one to,
+gear's, the world buffs', the traps' and the Archipelago Stone unlocks', and those of the zone items no achievement lends one to,
 such as the capital cities' mage teleports. A zone item given an icon of its own in ArchipelaWoW's
 `items/zones.py` needs it added there. A skill takes the icon of the weapon proficiency that teaches it,
 and Defense, which no weapon master sells, its own from `SKILL_ICONS` in the same file.
