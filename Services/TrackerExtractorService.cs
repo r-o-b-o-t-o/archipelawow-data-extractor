@@ -638,9 +638,11 @@ public partial class TrackerExtractorService(
         {
             foreach (var race in races)
             {
-                if (raceCoords.TryGetValue(race.ClientFileString.ToUpperInvariant() + "_MALE", out var coords))
+                string key = race.ClientFileString.ToUpperInvariant();
+                if (raceCoords.TryGetValue(key + "_MALE", out var male) && raceCoords.TryGetValue(key + "_FEMALE", out var female))
                 {
-                    WriteAtlasPart(atlas, coords, Path.Combine(outDir, "ui", $"race_{race.ID}.webp"));
+                    WriteAtlasPart(atlas, male, Path.Combine(outDir, "ui", $"race_{race.ID}_male.webp"));
+                    WriteAtlasPart(atlas, female, Path.Combine(outDir, "ui", $"race_{race.ID}_female.webp"));
                     raceNames[race.ID] = new { Name = race.NameLang, Side = race.Alliance == RACE_ALLIANCE ? SIDE_ALLIANCE : SIDE_HORDE };
                 }
             }

@@ -535,7 +535,7 @@ Everything goes to `TRACKER_OUT_DIR`, images as WebP:
 | `skills.json`      | The skills' names and icons, by `SkillLine.dbc` id                                        |
 | `achievements.json`, `items.json` | Icons, and an achievement's name and dungeon                               |
 | `icons/`           | Every icon those name, as `<lowercase name>.webp`                                         |
-| `ui/`              | Marker images, and the class and race icons as `class_<id>.webp` and `race_<id>.webp`     |
+| `ui/`              | Marker images, and the class and race icons as `class_<id>.webp` and `race_<id>_<male\|female>.webp` |
 | `characters.json`  | The names of those classes and races, and each race's side, by `ChrClasses.dbc` and `ChrRaces.dbc` id |
 
 Files are overwritten but never deleted: delete the folder first when an icon or a map goes away.
