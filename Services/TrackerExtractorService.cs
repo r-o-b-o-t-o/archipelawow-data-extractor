@@ -95,8 +95,8 @@ public partial class TrackerExtractorService(
     private static readonly uint[] CONSUMABLE_ITEMS = [4427, 1335, 2767];
 
     /// <summary>
-    /// Icons for what the extracts carry none for: the tracker's progressive items, gold, random gear and Archipelago
-    /// Stone unlocks, and the zone items whose icon no extracted achievement has (the zones of archipelawow's
+    /// Icons for what the extracts carry none for: the tracker's progressive items, gold, random gear, world buffs and
+    /// Archipelago Stone unlocks, and the zone items whose icon no extracted achievement has (the zones of archipelawow's
     /// items/zones.py).
     /// </summary>
     private static readonly string[] TRACKER_ICONS = [
@@ -109,6 +109,7 @@ public partial class TrackerExtractorService(
         "INV_Sword_04",
         "INV_Chest_Chain_05",
         "INV_Jewelry_Ring_03",
+        "INV_Misc_Head_Dragon_01",
         "INV_Misc_QuestionMark",
         "Achievement_Reputation_01",
         "Spell_Arcane_TeleportDarnassus",
