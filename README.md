@@ -57,8 +57,8 @@ Start worldserver once with those set, let it finish loading, then shut it down.
 written back to the database and stay populated, so this only has to be done once per world database
 (and again after any change that adds spawns). You can turn the options back off afterwards.
 
-Without this step most quests are extracted with empty `startZones` and `endZones`, and weapon skills
-and riding ranks with empty `trainerZones`. The extractor logs a warning when it detects that, but it
+Without this step most quests are extracted with empty `startZones` and `endZones`, weapon skills
+and riding ranks with empty `trainerZones`, and the skills with empty `vendorZones`. The extractor logs a warning when it detects that, but it
 will not stop.
 
 The extractor only reads from the database.
@@ -341,7 +341,8 @@ Raising a skill is a location in ArchipelaWoW: the weapon skills and Defense ris
 times the character's level. The extract says which skills there are, and which races of each class are
 created holding one, since those need no item to raise it. A character not created holding a skill buys
 it from a weapon master, which is the weapon skill of `spells.json` named by `spell`, and whose
-`classRaces` says who may.
+`classRaces` says who may. Raising a weapon skill also takes a weapon of its kind, so the extract says
+where one is sold.
 
 ### What becomes an entry
 
@@ -349,6 +350,16 @@ Every skill line of `SkillLine.dbc`'s Weapon Skills category, the one the charac
 under, except two: Dual Wield, whose `SkillRaceClassInfo.dbc` entries flag it as always at its cap, so it
 is never raised, and Unarmed, which rises by fighting with no weapon in hand. Which races of each class are created holding a skill is worked out the same way
 as for the weapon skills of `spells.json`.
+
+### Where its weapons are sold
+
+The weapons of a skill are those of the item subclasses its proficiency spell names
+(`EquippedItemSubclass`). A zone sells one when a creature with the vendor flag spawned there lists it in
+`npc_vendor` for money: a row with an `ExtendedCost` asks for tokens or honor instead, an item with a
+`RequiredReputationFaction` or a `RequiredSkill` is only sold to some characters, and a creature spawned
+only during a game event or outside the normal phase is not counted on. A race can buy there when the item's
+`AllowableRace` lets it in and the vendor's faction will talk to the race's, the same reading as for the
+trainers of `spells.json`. Each zone keeps, for each race, the lowest `RequiredLevel` of what it sells.
 
 ### Output
 
@@ -359,7 +370,11 @@ as for the weapon skills of `spells.json`.
   "id": 43,
   "name": "Swords",
   "spell": 201,
-  "startingClassRaces": { "1": 1279, "2": 1541, "3": 1791 }
+  "startingClassRaces": { "1": 1279, "2": 1541, "3": 1791 },
+  "vendorZones": [
+    { "zone": 1, "level": 1, "races": 1101 },
+    { "zone": 1519, "level": 10, "races": 1101 }
+  ]
 }
 ```
 
@@ -368,6 +383,7 @@ as for the weapon skills of `spells.json`.
 | `id`                 | The `SkillLine.dbc` id, which the server module checks the locations on.                  |
 | `spell`              | The weapon proficiency a weapon master sells for it, `0` for Defense.                     |
 | `startingClassRaces` | The races of each class created holding it, keyed by class id. Classes with none are left out. |
+| `vendorZones`        | The `AreaTable.dbc` zones selling a weapon of the skill, sorted by zone then level: the lowest level such a weapon is equipped at there, and the races it is sold to at that level, `0` for all. A zone appears once per level when races differ. Empty for Defense. |
 
 ## Bosses
 
@@ -640,7 +656,7 @@ and Defense, which no weapon master sells, its own from `SKILL_ICONS` in the sam
 
 Everything under [`Entities/`](Entities) is scaffolded from the world database and should not be edited
 by hand; the hand-written navigations and keys live in [`EntityExtensions/`](EntityExtensions) as
-partial classes instead. Only the 28 tables the extractor actually reads are generated. From the Visual
+partial classes instead. Only the 30 tables the extractor actually reads are generated. From the Visual
 Studio Package Manager Console:
 
 ```powershell
@@ -648,7 +664,7 @@ Scaffold-DbContext 'Host=localhost;User=root;Password=root;Database=acore_world'
   -Context WorldDbContext -NoOnConfiguring -DataAnnotations -Force `
   -ContextDir Entities -ContextNamespace ArchipelaWoW.DataExtractor.Entities `
   -OutputDir Entities/World -Namespace ArchipelaWoW.DataExtractor.Entities.World `
-  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills,conditions,gossip_menu_option,instance_encounters,areatrigger_teleport,creature_loot_template,gameobject_loot_template,reference_loot_template
+  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills,conditions,gossip_menu_option,instance_encounters,areatrigger_teleport,creature_loot_template,gameobject_loot_template,reference_loot_template,npc_vendor,game_event_creature
 ```
 
 Two things to know before running it:

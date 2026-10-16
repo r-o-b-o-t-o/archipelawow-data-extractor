@@ -30,6 +30,8 @@ public partial class WorldDbContext : DbContext
 
     public virtual DbSet<Disable> Disables { get; set; }
 
+    public virtual DbSet<GameEventCreature> GameEventCreatures { get; set; }
+
     public virtual DbSet<GameEventCreatureQuest> GameEventCreatureQuests { get; set; }
 
     public virtual DbSet<GameEventGameobjectQuest> GameEventGameobjectQuests { get; set; }
@@ -49,6 +51,8 @@ public partial class WorldDbContext : DbContext
     public virtual DbSet<InstanceEncounter> InstanceEncounters { get; set; }
 
     public virtual DbSet<ItemTemplate> ItemTemplates { get; set; }
+
+    public virtual DbSet<NpcVendor> NpcVendors { get; set; }
 
     public virtual DbSet<PlayercreateinfoSkill> PlayercreateinfoSkills { get; set; }
 
@@ -214,6 +218,15 @@ public partial class WorldDbContext : DbContext
             entity.Property(e => e.Params1).HasDefaultValueSql("''");
         });
 
+        modelBuilder.Entity<GameEventCreature>(entity =>
+        {
+            entity.HasKey(e => new { e.Guid, e.EventEntry })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+
+            entity.Property(e => e.EventEntry).HasComment("Entry of the game event. Put negative entry to remove during event.");
+        });
+
         modelBuilder.Entity<GameEventCreatureQuest>(entity =>
         {
             entity.HasKey(e => new { e.Id, e.Quest })
@@ -347,6 +360,15 @@ public partial class WorldDbContext : DbContext
             entity.Property(e => e.Spellcooldown4).HasDefaultValueSql("'-1'");
             entity.Property(e => e.Spellcooldown5).HasDefaultValueSql("'-1'");
             entity.Property(e => e.Stackable).HasDefaultValueSql("'1'");
+        });
+
+        modelBuilder.Entity<NpcVendor>(entity =>
+        {
+            entity.HasKey(e => new { e.Entry, e.Item, e.ExtendedCost })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0, 0 });
+
+            entity.ToTable("npc_vendor", tb => tb.HasComment("Npc System"));
         });
 
         modelBuilder.Entity<PlayercreateinfoSkill>(entity =>

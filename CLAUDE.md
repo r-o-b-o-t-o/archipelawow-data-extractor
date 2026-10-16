@@ -38,8 +38,8 @@ section before changing an extractor.
 - `dotnet build` for a compile check. A full `dotnet run` needs a populated world database and DBC
   directory configured in `.env` (see README).
 - The extracts need the spawn zone columns populated (README, "Preparing the world database");
-  without them `startZones` / `endZones` and the weapon and riding skills' `trainerZones` come out
-  empty, and the tracker's positions with them. The tool warns and continues, so never commit an
+  without them `startZones` / `endZones`, the weapon and riding skills' `trainerZones` and the skills'
+  `vendorZones` come out empty, and the tracker's positions with them. The tool warns and continues, so never commit an
   extract produced with that warning.
 - Check the tracker extracts' images by eye, and their positions in the launcher's tracker.
 

@@ -99,6 +99,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<QuestTemplateRepository>()
             .AddScoped<DisablesRepository>()
             .AddScoped<ConditionsRepository>()
-            .AddScoped<TrainerRepository>();
+            .AddScoped<TrainerRepository>()
+            .AddScoped<VendorRepository>();
     }
 }

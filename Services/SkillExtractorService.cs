@@ -25,6 +25,19 @@ public class ExtractedSkillData
     /// it, and are named by the <c>classRaces</c> of its spell in spells.json.
     /// </summary>
     public Dictionary<int, int> StartingClassRaces { get; set; } = [];
+
+    /// <summary>
+    /// The zones a vendor sells a weapon of the skill in, each with the lowest level such a weapon can be
+    /// equipped at and the mask of the races that can buy it there, 0 for every race. Empty for Defense.
+    /// </summary>
+    public List<ExtractedVendorZone> VendorZones { get; set; } = [];
+}
+
+public class ExtractedVendorZone
+{
+    public int Zone { get; set; }
+    public int Level { get; set; }
+    public int Races { get; set; }
 }
 
 /// <summary>
@@ -34,11 +47,14 @@ public class ExtractedSkillData
 public class SkillExtractorService(
         ILogger<SkillExtractorService> logger,
         TrainerRepository trainersRepo,
+        VendorRepository vendorsRepo,
         CharacterSkills characterSkills,
         SpellContainer spells,
         SkillLineContainer skillLines,
         SkillLineAbilityContainer skillLineAbilities,
-        SkillRaceClassInfoContainer skillRaceClassInfos
+        SkillRaceClassInfoContainer skillRaceClassInfos,
+        FactionTemplateContainer factionTemplates,
+        ChrRacesContainer races
     )
 {
     private readonly JsonSerializerOptions jsonOptions = new()
@@ -62,6 +78,7 @@ public class SkillExtractorService(
         string outDir = OutputDirectory.Prepare();
 
         var createSkills = await trainersRepo.GetCreateSkills();
+        var vendorWeapons = await vendorsRepo.GetVendorWeapons();
         var alwaysMax = skillRaceClassInfos
             .Where(info => (info.Flags & SKILL_FLAG_ALWAYS_MAX_VALUE) != 0)
             .Select(info => info.SkillID)
@@ -72,20 +89,63 @@ public class SkillExtractorService(
             .Where(skillLine => skillLine.CategoryID == SKILL_CATEGORY_WEAPON && !alwaysMax.Contains(skillLine.ID)
                 && skillLine.ID != SKILL_UNARMED)
             .OrderBy(skillLine => skillLine.ID)
-            .Select(skillLine => new ExtractedSkillData()
+            .Select(skillLine =>
             {
-                Id = skillLine.ID,
-                Name = skillLine.DisplayNameLang,
-                Spell = abilitiesBySkill[skillLine.ID]
+                Spell proficiency = abilitiesBySkill[skillLine.ID]
                     .Select(ability => spells.Get(ability.Spell))
-                    .FirstOrDefault(spell => spell != null && SpellExtractorService.IsWeaponProficiency(spell))?.ID ?? 0,
-                StartingClassRaces = StartingClassRaces(createSkills, skillLine.ID),
+                    .FirstOrDefault(spell => spell != null && SpellExtractorService.IsWeaponProficiency(spell));
+                return new ExtractedSkillData()
+                {
+                    Id = skillLine.ID,
+                    Name = skillLine.DisplayNameLang,
+                    Spell = proficiency?.ID ?? 0,
+                    StartingClassRaces = StartingClassRaces(createSkills, skillLine.ID),
+                    VendorZones = proficiency == null ? [] : VendorZones(vendorWeapons, proficiency.EquippedItemSubclass),
+                };
             })];
 
         string outFile = Path.Combine(outDir, "skills.json");
         await File.WriteAllTextAsync(outFile, JsonSerializer.Serialize(collected, jsonOptions));
 
         logger.LogInformation("Wrote {count} skills to {file}.", collected.Count, outFile);
+    }
+
+    /// <summary>
+    /// Where a weapon of one of the subclasses of <paramref name="subclassMask"/> is sold, the way
+    /// <see cref="ExtractedSkillData.VendorZones"/> lists it: for each zone and race, the lowest level of
+    /// the weapons a vendor there will sell to that race.
+    /// </summary>
+    private List<ExtractedVendorZone> VendorZones(List<VendorWeapon> vendorWeapons, int subclassMask)
+    {
+        Dictionary<(int Zone, int Race), int> lowestLevels = [];
+        foreach (VendorWeapon weapon in vendorWeapons.Where(weapon => (subclassMask & (1 << weapon.Subclass)) != 0))
+        {
+            FactionTemplate vendorFaction = factionTemplates.Get(weapon.Faction);
+            foreach (int raceId in PLAYABLE_RACE_IDS.Where(raceId => (Widen(weapon.AllowableRace, ALL_RACES_MASK) & RaceBit(raceId)) != 0))
+            {
+                FactionTemplate raceFaction = factionTemplates.Get(races.Get(raceId)?.FactionID ?? 0);
+                if (vendorFaction != null && raceFaction != null && !FactionRelations.WillTalkTo(vendorFaction, raceFaction))
+                {
+                    continue;
+                }
+
+                var key = (weapon.ZoneId, raceId);
+                lowestLevels[key] = Math.Min(lowestLevels.GetValueOrDefault(key, int.MaxValue), weapon.RequiredLevel);
+            }
+        }
+
+        return [.. lowestLevels
+            .GroupBy(entry => (entry.Key.Zone, Level: entry.Value))
+            .Select(group => (group.Key.Zone, group.Key.Level, Races: group.Aggregate(0, (mask, entry) => mask | RaceBit(entry.Key.Race))))
+            .OrderBy(entry => entry.Zone)
+            .ThenBy(entry => entry.Level)
+            .Select(entry => new ExtractedVendorZone()
+            {
+                Zone = entry.Zone,
+                Level = entry.Level,
+                // Every race written as 0, as RaceMask does
+                Races = entry.Races == PLAYABLE_RACES_MASK ? 0 : entry.Races,
+            })];
     }
 
     private Dictionary<int, int> StartingClassRaces(List<PlayercreateinfoSkill> createSkills, int skillId)
