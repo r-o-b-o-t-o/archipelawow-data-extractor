@@ -403,9 +403,10 @@ Dropped along the way:
 
 - encounters `instance_encounters` has no row for, which the core never credits
 - bosses summoned with an item that comes from outside their dungeon, which the dungeon's zone item
-  alone does not lead to: Kirtonos the Herald, Avatar of Hakkar and Gahz'rilla. Urok Doomhowl stays, as
-  both items his summoning uses come from the same dungeon: Omokk's Head drops from Highlord Omokk, and
-  the Roughshod Pike from a chest anyone can open
+  alone does not lead to: Kirtonos the Herald and Avatar of Hakkar. Urok Doomhowl stays, as both items
+  his summoning uses come from the same dungeon: Omokk's Head drops from Highlord Omokk, and the
+  Roughshod Pike from a chest anyone can open. So does Gahz'rilla, whose gong no longer asks for the
+  Mallet of Zul'Farrak
 - the Violet Hold's First and Second Prisoner, which the core only credits for Erekem and Moragg, two of
   the six prisoners a run picks from at random
 

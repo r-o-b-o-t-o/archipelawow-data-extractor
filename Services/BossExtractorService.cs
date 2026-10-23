@@ -56,8 +56,6 @@ public class BossExtractorService(
         451,
         // Avatar of Hakkar: the Egg of Hakkar comes from the quest "The God Hakkar", given in Tanaris
         492,
-        // Gahz'rilla: the Mallet of Zul'Farrak is made from the Sacred Mallet, dropped in the Hinterlands
-        594,
     ];
 
     // Encounters credited for one boss out of several a run picks from at random.
