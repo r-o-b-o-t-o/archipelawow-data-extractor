@@ -16,6 +16,10 @@ public class ExtractedBossData
     public int Id { get; set; }
     public string Name { get; set; }
     public ExtractedMap Map { get; set; }
+    /// <summary>
+    /// The one team that can fight the boss: <c>1</c> Alliance, <c>2</c> Horde, <c>0</c> when both can.
+    /// </summary>
+    public int Factions { get; set; }
 }
 
 public class ExtractedMap
@@ -65,6 +69,17 @@ public class BossExtractorService(
         541, 543,
     ];
 
+    // ExtractedBossData.Factions
+    private const int FACTION_ANY = 0;
+    private const int FACTION_HORDE = 2;
+
+    // Encounters only one team can fight, as the other is friendly with the boss.
+    private static readonly Dictionary<int, int> ONE_FACTION_ENCOUNTERS = new()
+    {
+        // The Lost Dwarves: Baelog, Eric and Olaf are Ironforge dwarves
+        [548] = FACTION_HORDE,
+    };
+
     // Names DungeonEncounter.dbc misspells, by encounter id
     private static readonly Dictionary<int, string> NAME_FIXES = new()
     {
@@ -97,6 +112,7 @@ public class BossExtractorService(
                     Id = encounter.MapID,
                     Name = maps.Get(encounter.MapID).MapNameLang,
                 },
+                Factions = ONE_FACTION_ENCOUNTERS.GetValueOrDefault(encounter.ID, FACTION_ANY),
             })];
 
         string outFile = Path.Combine(outDir, "bosses.json");

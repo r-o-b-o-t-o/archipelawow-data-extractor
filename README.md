@@ -421,12 +421,18 @@ encounters:
 {
   "id": 167,
   "name": "Edwin VanCleef",
-  "map": { "id": 36, "name": "Deadmines" }
+  "map": { "id": 36, "name": "Deadmines" },
+  "factions": 0
 }
 ```
 
 `map` is the dungeon's `Map.dbc` id and name. ArchipelaWoW matches it to the map its dungeon's zone
 teleports into.
+
+`factions` is the one team that can fight the boss, `1` Alliance or `2` Horde, and `0` when both can. It
+is set by hand (`ONE_FACTION_ENCOUNTERS`) for the bosses friendly to the other team: the Lost Dwarves of
+Uldaman are Ironforge dwarves, which the Alliance cannot attack. Reading it off the faction templates
+would also catch the bosses a script turns hostile, such as Phalanx or Witch Doctor Zum'rah.
 
 ## Explorations
 
