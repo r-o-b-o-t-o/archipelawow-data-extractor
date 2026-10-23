@@ -289,6 +289,14 @@ public class QuestExtractorService(
         5047,
     ];
 
+    // Quests that ask for an item only a profession makes, which the quest itself does not require.
+    private static readonly HashSet<uint> CRAFTED_ITEM_QUESTS = [
+        // Lotwil Veriatus and Lucien Tosselwrench, in the Badlands: "Coolant Heads Prevail" (Frost Oil),
+        // "Gyro... What?" (Gyrochronatom) and "Stone Is Better than Cloth" (Patterned Bronze Bracers).
+        // "This Is Going to Be Hard" follows "Gyro... What?", so it goes with it.
+        713, 714, 716,
+    ];
+
     // Quests no player can get, or only during a window that never comes back.
     private static readonly HashSet<uint> UNOBTAINABLE_QUESTS = [
         // "The Black Box": started by the Corroded Black Box, which Zaricotl no longer drops and nothing
@@ -441,6 +449,7 @@ public class QuestExtractorService(
             .Where(q => FilterQuest(q, "unreachable minimum level", FilterUnreachableMinLevel))
             .Where(q => FilterQuest(q, "reputation requirement", FilterReputation))
             .Where(q => FilterQuest(q, "profession requirement", FilterProfession))
+            .Where(q => FilterQuest(q, "crafted item", FilterCraftedItem))
             .Where(q => FilterQuest(q, "exclusive group", FilterExclusiveGroups))
             .Where(q => FilterQuest(q, "collector's edition", FilterCollectorsEdition))
             .Where(q => FilterQuest(q, "cloth donation", FilterClothDonation))
@@ -780,6 +789,11 @@ public class QuestExtractorService(
     {
         var addon = q.QuestTemplate.QuestTemplateAddon;
         return (addon == null || addon.RequiredSkillId == 0) && !PROFESSION_GIVER_QUESTS.Contains(q.Id);
+    }
+
+    private bool FilterCraftedItem(ExtractedQuestData q)
+    {
+        return !CRAFTED_ITEM_QUESTS.Contains(q.Id);
     }
 
     private bool FilterDeprecatedName(ExtractedQuestData q)
