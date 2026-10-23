@@ -52,9 +52,6 @@ public partial class TrackerExtractorService(
     // Map.InstanceType, see DBCEnums.h
     private const int MAP_INSTANCE = 1;
 
-    // DungeonEncounter.Difficulty, see DBCEnums.h
-    private const int DUNGEON_DIFFICULTY_NORMAL = 0;
-
     // Achievement_Criteria.Type, see DBCEnums.h
     private const int ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE = 0;
 
@@ -222,7 +219,9 @@ public partial class TrackerExtractorService(
     private async Task<Dictionary<int, MapPosition>> ExtractDungeons(string outDir, string dataDir, ILookup<int, PlacedSpawn> spawns)
     {
         var teleports = await db.AreatriggerTeleports.ToListAsync();
-        var bossIds = ReadIds(dataDir, "bosses.json");
+        // Read from bosses.json rather than DungeonEncounter.dbc, which lacks the encounters the server module
+        // credits itself. It is already in the dungeons' encounter order.
+        var bossesByMap = ReadArray(dataDir, "bosses.json").ToLookup(node => node["map"]["id"].GetValue<int>(), node => node["id"].GetValue<int>());
 
         var result = new SortedDictionary<int, object>();
         var firstEntrances = new Dictionary<int, MapPosition>();
@@ -253,10 +252,7 @@ public partial class TrackerExtractorService(
             result[map.ID] = new
             {
                 Entrances = entrances.Select(e => e.ToJson()),
-                Encounters = encounters
-                    .Where(e => e.MapID == map.ID && e.Difficulty == DUNGEON_DIFFICULTY_NORMAL && bossIds.Contains(e.ID))
-                    .OrderBy(e => e.OrderIndex)
-                    .Select(e => e.ID),
+                Encounters = bossesByMap[map.ID],
             };
         }
 
