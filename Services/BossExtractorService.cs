@@ -80,6 +80,15 @@ public class BossExtractorService(
         [548] = FACTION_HORDE,
     };
 
+    // Encounters DungeonEncounter.dbc has no row for, which the server module credits itself under an id
+    // past every DBC id (the highest is 894). The OrderIndex places one among its dungeon's encounters.
+    private static readonly List<(int Id, string Name, int MapID, int OrderIndex)> SYNTHETIC_ENCOUNTERS = [
+        // Sergeant Bly: once the Zul'Farrak pyramid event is over, between Shadowpriest Sezz'ziz and Chief
+        // Ukorz Sandscalp, his crew turns on the party when a player tells him to. The module credits it
+        // when Bly (7604) dies.
+        (100000, "Sergeant Bly", 209, 6500),
+    ];
+
     // Names DungeonEncounter.dbc misspells, by encounter id
     private static readonly Dictionary<int, string> NAME_FIXES = new()
     {
@@ -96,23 +105,27 @@ public class BossExtractorService(
 
         var credited = (await db.InstanceEncounters.Select(encounter => encounter.Entry).ToListAsync()).Select(entry => (int)entry).ToHashSet();
 
-        List<ExtractedBossData> bosses = [.. encounters
+        var dbcEncounters = encounters
             .Where(encounter => encounter.Difficulty == DUNGEON_DIFFICULTY_NORMAL && maps.Get(encounter.MapID)?.InstanceType == MAP_INSTANCE)
             .Where(encounter => FilterEncounter(encounter, "never credited", e => credited.Contains(e.ID)))
             .Where(encounter => FilterEncounter(encounter, "summoned from outside the dungeon", e => !SUMMONED_FROM_OUTSIDE_ENCOUNTERS.Contains(e.ID)))
             .Where(encounter => FilterEncounter(encounter, "random boss", e => !RANDOM_BOSS_ENCOUNTERS.Contains(e.ID)))
+            .Select(encounter => (Id: encounter.ID, Name: NAME_FIXES.GetValueOrDefault(encounter.ID, encounter.NameLang), encounter.MapID, encounter.OrderIndex));
+
+        List<ExtractedBossData> bosses = [.. dbcEncounters
+            .Concat(SYNTHETIC_ENCOUNTERS)
             .OrderBy(encounter => encounter.MapID)
             .ThenBy(encounter => encounter.OrderIndex)
             .Select(encounter => new ExtractedBossData()
             {
-                Id = encounter.ID,
-                Name = NAME_FIXES.GetValueOrDefault(encounter.ID, encounter.NameLang),
+                Id = encounter.Id,
+                Name = encounter.Name,
                 Map = new ExtractedMap()
                 {
                     Id = encounter.MapID,
                     Name = maps.Get(encounter.MapID).MapNameLang,
                 },
-                Factions = ONE_FACTION_ENCOUNTERS.GetValueOrDefault(encounter.ID, FACTION_ANY),
+                Factions = ONE_FACTION_ENCOUNTERS.GetValueOrDefault(encounter.Id, FACTION_ANY),
             })];
 
         string outFile = Path.Combine(outDir, "bosses.json");
