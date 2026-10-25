@@ -11,7 +11,8 @@ public class ExtractedBossData
 {
     /// <summary>
     /// The DungeonEncounter.dbc id, which is what the core credits when the boss goes down and what the
-    /// server module checks the location on.
+    /// server module checks the location on. For an encounter the server module credits itself, a made-up
+    /// id past every DBC id.
     /// </summary>
     public int Id { get; set; }
     public string Name { get; set; }
@@ -30,7 +31,8 @@ public class ExtractedMap
 
 /// <summary>
 /// Builds the dungeon boss table archipelawow ships: the 5-player dungeon encounters of the client's
-/// DungeonEncounter.dbc that the core credits through the world database's instance_encounters.
+/// DungeonEncounter.dbc that the core credits through the world database's instance_encounters, and the
+/// few the server module credits itself.
 /// </summary>
 public class BossExtractorService(
         ILogger<BossExtractorService> logger,
@@ -87,6 +89,9 @@ public class BossExtractorService(
         // Ukorz Sandscalp, his crew turns on the party when a player tells him to. The module credits it
         // when Bly (7604) dies.
         (100000, "Sergeant Bly", 209, 6500),
+        // Obsidian Sentinel: between Ironaya and the Ancient Stone Keeper in Uldaman. The module credits it
+        // when the Sentinel (7023) dies.
+        (100001, "Obsidian Sentinel", 70, 3000),
     ];
 
     // Names DungeonEncounter.dbc misspells, by encounter id

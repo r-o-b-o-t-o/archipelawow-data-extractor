@@ -415,11 +415,16 @@ The few names `DungeonEncounter.dbc` misspells, such as "Salram the Fleshcrafter
 
 A few bosses have no encounter in `DungeonEncounter.dbc` at all, so the core never credits them. They are
 listed by hand (`SYNTHETIC_ENCOUNTERS`) under a made-up id past every DBC id, which the server module
-credits itself. There is one: Sergeant Bly (`100000`), credited when Bly dies. Once the Zul'Farrak
-pyramid event is over, his crew turns on the party when a player tells him to; left alone, they
-teleport out about two and a half minutes after the last troll falls. Each is placed among its
-dungeon's encounters by an `OrderIndex` of its own, Sergeant Bly's between Shadowpriest Sezz'ziz and
-Chief Ukorz Sandscalp.
+credits itself. There are two:
+
+- Sergeant Bly (`100000`), credited when Bly dies. Once the Zul'Farrak pyramid event is over, his crew
+  turns on the party when a player tells him to; left alone, they teleport out about two and a half
+  minutes after the last troll falls.
+- The Obsidian Sentinel (`100001`) in Uldaman, credited when the Sentinel dies.
+
+Each is placed among its dungeon's encounters by an `OrderIndex` of its own: Sergeant Bly's between
+Shadowpriest Sezz'ziz and Chief Ukorz Sandscalp, the Obsidian Sentinel's between Ironaya and the Ancient
+Stone Keeper.
 
 ### Output
 
