@@ -333,6 +333,8 @@ public class QuestExtractorService(
         635,
         // "Find OOX-17/TN!", "Find OOX-09/HL!", "Find OOX-22/FE!": the OOX distress beacons
         351, 485, 2766,
+        // "Captain Sanders' Hidden Treasure": Captain Sanders' Treasure Map, a 1% drop in Westfall
+        136,
     ];
 
     // Quests started by an item that only drops off a raid boss.
