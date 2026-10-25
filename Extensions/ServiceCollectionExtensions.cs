@@ -79,6 +79,7 @@ public static class ServiceCollectionExtensions
             .AddSingleton<SkillLineAbilityContainer>()
             .AddSingleton<SkillRaceClassInfoContainer>()
             .AddSingleton<DungeonEncounterContainer>()
+            .AddSingleton<LFGDungeonsContainer>()
             .AddSingleton<MapContainer>()
             .AddSingleton<WorldMapOverlayContainer>()
             .AddSingleton<WorldMapContinentContainer>()

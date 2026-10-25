@@ -579,7 +579,7 @@ Everything goes to `TRACKER_OUT_DIR`, images as WebP:
 | `quests.json`      | Where each quest is picked up, and the level it can be done from                          |
 | `flightpaths.json` | The flight masters, by `TaxiNodes.dbc` id: the taxi nodes with one standing by            |
 | `leaders.json`     | Where the faction leaders stand, and the icon of the achievement for killing them, by creature entry |
-| `dungeons.json`    | The 5-player dungeons' entrances and encounters, by `Map.dbc` id                          |
+| `dungeons.json`    | The 5-player dungeons' entrances, encounters and Dungeon Finder level, by `Map.dbc` id    |
 | `explorations.json` | Where each subzone is, and its achievement's icon, by `Achievement_Criteria.dbc` id      |
 | `spells.json`      | The spells' icons                                                                         |
 | `skills.json`      | The skills' names and icons, by `SkillLine.dbc` id                                        |
@@ -618,6 +618,10 @@ archipelawow raises the quest's level: the highest of `requiresAll`, and the low
 
 `dungeons.json` places each dungeon at the area triggers leading inside, or at its `Map.dbc` corpse
 position for the ones with no trigger on a continent, and lists the encounters of `bosses.json` in it.
+`minLevel` is the level the Dungeon Finder lets a character in from: the `MinLevel` of its normal
+`LFGDungeons.dbc` entry rather than the level its entrance asks for, or the lowest of its wings' for a
+dungeon split into wings. The seasonal bosses' entries are left out, and a dungeon the Dungeon Finder
+doesn't list has none.
 
 `explorations.json` places each subzone on its zone's map, in the middle of the `WorldMapOverlay.dbc`
 explored area its criterion names: the centroid of the area's shape, or the point of the shape closest

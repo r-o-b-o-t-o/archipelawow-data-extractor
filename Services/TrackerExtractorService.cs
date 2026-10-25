@@ -28,6 +28,7 @@ public partial class TrackerExtractorService(
         AreaTriggerContainer areaTriggers,
         TaxiNodesContainer taxiNodes,
         DungeonEncounterContainer encounters,
+        LFGDungeonsContainer lfgDungeons,
         SpellContainer spells,
         SpellIconContainer spellIcons,
         AchievementContainer achievements,
@@ -51,6 +52,10 @@ public partial class TrackerExtractorService(
 
     // Map.InstanceType, see DBCEnums.h
     private const int MAP_INSTANCE = 1;
+
+    // LFGDungeons.TypeID and .Flags, see LFGMgr.h. Heroic entries have a type of their own.
+    private const int LFG_TYPE_DUNGEON = 1;
+    private const int LFG_FLAG_SEASONAL = 0x4;
 
     // Achievement_Criteria.Type, see DBCEnums.h
     private const int ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE = 0;
@@ -213,8 +218,9 @@ public partial class TrackerExtractorService(
     }
 
     /// <summary>
-    /// The 5-player dungeons: their entrances, where the area triggers leading inside sit, and their
-    /// encounters. Returns the entrances, for what stands inside to be shown there.
+    /// The 5-player dungeons: their entrances, where the area triggers leading inside sit, their
+    /// encounters, and the level the Dungeon Finder lets a character in from. Returns the entrances, for
+    /// what stands inside to be shown there.
     /// </summary>
     private async Task<Dictionary<int, MapPosition>> ExtractDungeons(string outDir, string dataDir, ILookup<int, PlacedSpawn> spawns)
     {
@@ -222,6 +228,12 @@ public partial class TrackerExtractorService(
         // Read from bosses.json rather than DungeonEncounter.dbc, which lacks the encounters the server module
         // credits itself. It is already in the dungeons' encounter order.
         var bossesByMap = ReadArray(dataDir, "bosses.json").ToLookup(node => node["map"]["id"].GetValue<int>(), node => node["id"].GetValue<int>());
+        // The seasonal bosses' entries share their dungeon's map. A dungeon split into wings has an entry for each:
+        // it takes the lowest.
+        var minLevels = lfgDungeons
+            .Where(d => d.TypeID == LFG_TYPE_DUNGEON && (d.Flags & LFG_FLAG_SEASONAL) == 0)
+            .GroupBy(d => d.MapID)
+            .ToDictionary(g => g.Key, g => g.Min(d => d.MinLevel));
 
         var result = new SortedDictionary<int, object>();
         var firstEntrances = new Dictionary<int, MapPosition>();
@@ -253,6 +265,7 @@ public partial class TrackerExtractorService(
             {
                 Entrances = entrances.Select(e => e.ToJson()),
                 Encounters = bossesByMap[map.ID],
+                MinLevel = minLevels.TryGetValue(map.ID, out int minLevel) ? minLevel : (int?)null,
             };
         }
 
