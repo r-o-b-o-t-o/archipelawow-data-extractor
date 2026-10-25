@@ -410,6 +410,8 @@ Dropped along the way:
   Mallet of Zul'Farrak
 - the Violet Hold's First and Second Prisoner, which the core only credits for Erekem and Moragg, two of
   the six prisoners a run picks from at random
+- Upper Blackrock Spire's encounters, which share Blackrock Spire's map with Lower Blackrock Spire's: it
+  is a 10-player raid in 3.3.5, and no dungeon achievement asks for it
 
 The few names `DungeonEncounter.dbc` misspells, such as "Salram the Fleshcrafter", are corrected by hand.
 
@@ -439,7 +441,8 @@ encounters:
   "id": 167,
   "name": "Edwin VanCleef",
   "map": { "id": 36, "name": "Deadmines" },
-  "factions": 0
+  "factions": 0,
+  "level": 20
 }
 ```
 
@@ -450,6 +453,13 @@ teleports into.
 is set by hand (`ONE_FACTION_ENCOUNTERS`) for the bosses friendly to the other team: the Lost Dwarves of
 Uldaman are Ironforge dwarves, which the Alliance cannot attack. Reading it off the faction templates
 would also catch the bosses a script turns hostile, such as Phalanx or Witch Doctor Zum'rah.
+
+`level` is the highest `creature_template.maxlevel` among the creatures fought, which ArchipelaWoW asks
+for a level two below of, where the boss stops showing orange. That is the creature `instance_encounters`
+credits, unless the encounter is listed by hand (`FOUGHT_CREATURES`): the ones credited through a spell
+(Mal'Ganis, The Prophet Tharon'ja, the Tribunal of Ages, whose Dark Rune adds are the ones fought, and those
+of the unused Trial of the Champion and Halls of Reflection), The Seven, whose credited Anger'rel is a level
+below most of the others, and the encounters the server module credits itself. The tool warns about an encounter it finds no level for.
 
 ## Explorations
 

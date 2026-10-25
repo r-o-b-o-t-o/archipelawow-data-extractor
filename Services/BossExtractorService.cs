@@ -21,6 +21,10 @@ public class ExtractedBossData
     /// The one team that can fight the boss: <c>1</c> Alliance, <c>2</c> Horde, <c>0</c> when both can.
     /// </summary>
     public int Factions { get; set; }
+    /// <summary>
+    /// The highest level among the creatures fought in the encounter.
+    /// </summary>
+    public int Level { get; set; }
 }
 
 public class ExtractedMap
@@ -71,6 +75,38 @@ public class BossExtractorService(
         541, 543,
     ];
 
+    // Upper Blackrock Spire's encounters, which share Blackrock Spire's map with Lower Blackrock Spire's. It is
+    // a 10-player raid in 3.3.5, and no dungeon achievement asks for it.
+    private static readonly HashSet<int> UPPER_BLACKROCK_SPIRE_ENCOUNTERS = [276, 277, 278, 279, 280];
+
+    // instance_encounters.creditType, EncounterCreditType in Map.h
+    private const byte ENCOUNTER_CREDIT_KILL_CREATURE = 0;
+
+    // The creatures fought in the encounters the creature the core credits does not stand for: the ones it
+    // credits through a spell a script casts, the groups whose members are not all of the same level, and
+    // the ones the server module credits itself.
+    private static readonly Dictionary<int, int[]> FOUGHT_CREATURES = new()
+    {
+        // The Seven: Anger'rel, the one credited, and Hate'rel are a level below the five others
+        [243] = [9034, 9035, 9036, 9037, 9038, 9039, 9040],
+        [296] = [26533], // Mal'Ganis
+        [375] = [26632], // The Prophet Tharon'ja
+        // Tribunal of Ages: the Dark Rune adds the event sends. The three faces and Brann cannot be attacked.
+        [567] = [27983, 27984, 27985],
+        // Sergeant Bly and his crew
+        [100000] = [7604, 7605, 7606, 7607, 7608],
+        [100001] = [7023], // Obsidian Sentinel
+        // Atal'ai Defenders: Zolo, Gasher, Loro, Hukku, Zul'Lor and Mijan
+        [100002] = [5712, 5713, 5714, 5715, 5716, 5717],
+        // Trial of the Champion and Halls of Reflection, which ArchipelaWoW does not use, all credited through a spell.
+        // Grand Champions: the Horde champions the Alliance faces, and the Alliance champions the Horde faces
+        [334] = [35569, 35570, 35571, 35572, 35617, 34657, 34701, 34702, 34703, 34705],
+        [338] = [34928, 35119], // Argent Champion: Argent Confessor Paletress or Eadric the Pure
+        [340] = [35451], // The Black Knight
+        // Escaped from Arthas: the undead the Lich King sends after the party
+        [843] = [36940, 36941, 37069],
+    };
+
     // ExtractedBossData.Factions
     private const int FACTION_ANY = 0;
     private const int FACTION_HORDE = 2;
@@ -111,13 +147,34 @@ public class BossExtractorService(
     {
         string outDir = OutputDirectory.Prepare();
 
-        var credited = (await db.InstanceEncounters.Select(encounter => encounter.Entry).ToListAsync()).Select(entry => (int)entry).ToHashSet();
+        var instanceEncounters = await db.InstanceEncounters.ToListAsync();
+        var credited = instanceEncounters.Select(encounter => (int)encounter.Entry).ToHashSet();
+        var creditedCreatures = instanceEncounters
+            .Where(encounter => encounter.CreditType == ENCOUNTER_CREDIT_KILL_CREATURE)
+            .ToDictionary(encounter => (int)encounter.Entry, encounter => (int)encounter.CreditEntry);
+        var creatureLevels = await db.CreatureTemplates
+            .Select(creature => new { creature.Entry, creature.Maxlevel })
+            .ToDictionaryAsync(creature => (int)creature.Entry, creature => (int)creature.Maxlevel);
+
+        int EncounterLevel(int encounterId, string name)
+        {
+            int[] creatures = FOUGHT_CREATURES.TryGetValue(encounterId, out var fought) ? fought
+                : creditedCreatures.TryGetValue(encounterId, out int credit) ? [credit]
+                : [];
+            int level = creatures.Select(creature => creatureLevels.GetValueOrDefault(creature)).DefaultIfEmpty().Max();
+            if (level == 0)
+            {
+                logger.LogWarning("No level for \"{name}\" ({id}): list the creatures fought in FOUGHT_CREATURES.", name, encounterId);
+            }
+            return level;
+        }
 
         var dbcEncounters = encounters
             .Where(encounter => encounter.Difficulty == DUNGEON_DIFFICULTY_NORMAL && maps.Get(encounter.MapID)?.InstanceType == MAP_INSTANCE)
             .Where(encounter => FilterEncounter(encounter, "never credited", e => credited.Contains(e.ID)))
             .Where(encounter => FilterEncounter(encounter, "summoned from outside the dungeon", e => !SUMMONED_FROM_OUTSIDE_ENCOUNTERS.Contains(e.ID)))
             .Where(encounter => FilterEncounter(encounter, "random boss", e => !RANDOM_BOSS_ENCOUNTERS.Contains(e.ID)))
+            .Where(encounter => FilterEncounter(encounter, "raid", e => !UPPER_BLACKROCK_SPIRE_ENCOUNTERS.Contains(e.ID)))
             .Select(encounter => (Id: encounter.ID, Name: NAME_FIXES.GetValueOrDefault(encounter.ID, encounter.NameLang), encounter.MapID, encounter.OrderIndex));
 
         List<ExtractedBossData> bosses = [.. dbcEncounters
@@ -134,6 +191,7 @@ public class BossExtractorService(
                     Name = maps.Get(encounter.MapID).MapNameLang,
                 },
                 Factions = ONE_FACTION_ENCOUNTERS.GetValueOrDefault(encounter.Id, FACTION_ANY),
+                Level = EncounterLevel(encounter.Id, encounter.Name),
             })];
 
         string outFile = Path.Combine(outDir, "bosses.json");
