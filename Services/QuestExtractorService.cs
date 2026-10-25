@@ -295,6 +295,8 @@ public class QuestExtractorService(
         // "Gyro... What?" (Gyrochronatom) and "Stone Is Better than Cloth" (Patterned Bronze Bracers).
         // "This Is Going to Be Hard" follows "Gyro... What?", so it goes with it.
         713, 714, 716,
+        // "Components for the Enchanted Gold Bloodrobe": Robes of Arcana, made by tailors
+        1796,
     ];
 
     // Quests no player can get, or only during a window that never comes back.
