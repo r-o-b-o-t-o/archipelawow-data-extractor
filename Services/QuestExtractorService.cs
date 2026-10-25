@@ -289,14 +289,43 @@ public class QuestExtractorService(
         5047,
     ];
 
-    // Quests that ask for an item only a profession makes, which the quest itself does not require.
+    // Quests that ask for an item a profession makes, which the quest itself does not require. Some of these items
+    // can also be bought or looted; those quests are left out on purpose all the same.
     private static readonly HashSet<uint> CRAFTED_ITEM_QUESTS = [
         // Lotwil Veriatus and Lucien Tosselwrench, in the Badlands: "Coolant Heads Prevail" (Frost Oil),
         // "Gyro... What?" (Gyrochronatom) and "Stone Is Better than Cloth" (Patterned Bronze Bracers).
         // "This Is Going to Be Hard" follows "Gyro... What?", so it goes with it.
         713, 714, 716,
-        // "Components for the Enchanted Gold Bloodrobe": Robes of Arcana, made by tailors
+        // "Components for the Enchanted Gold Bloodrobe": Robes of Arcana, made by tailors. The rest of the warlock
+        // chain, whose next step asks for a Gold Bar, goes with it.
         1796,
+        // Alchemy: "Elixir of Agony" (Strong Troll's Blood Elixir), "Ineptitude + Chemicals = Fun" (Elixir of
+        // Minor Fortitude), "A Short Incubation" (Elixir of Fortitude), "Bell of Dethmoora" (Elixir of Shadow
+        // Power), "A Gesture of Commitment" (Arcanite Bar). "Arcanite", which also asks for an Arcanite Bar,
+        // follows "Bell of Dethmoora", so it goes with it.
+        515, 1073, 3842, 7626, 9723,
+        // "Elemental Mastery": Elemental Fire, an Alchemy transmute that fire elementals also drop
+        8410,
+        // Mining: "Sweet Amber" (Truesilver Bar), "Brutal Armor" (Iron Bar), "Lore for a Price", "Gnome
+        // Improvement" and "Nogg's Ring Redo" (Silver Bar)
+        50, 1838, 2199, 2948, 2950,
+        // Blacksmithing: "Grinding Stones for the Guard" (grinding stones), "That's Asking A Lot" (Golden Rod,
+        // along with Mining's Thorium Bar and Engineering's Hi-Explosive Bomb and Unstable Trigger)
+        8806, 6026,
+        // Engineering: "Chasing A-Me 01" (Mithril Casing), "Just a Few More Things..." (Overcharged Capacitor)
+        4244, 11650,
+        // "Look To The Stars", "The Touch of Zanzil": a Bronze Tube, made by engineers but also sold in limited
+        // supply by Engineering Supplies vendors
+        174, 2609,
+        // Enchanting: "Fragments of the Past" (Enchanted Thorium Bar, which miners can make too), "Rohok's
+        // Request" and "Dumphry's Request" (Arcane Dust)
+        5247, 10757, 10763,
+        // Leatherworking, Skinning and Tailoring: "Bartolo's Yeti Fur Cloak" (Hillman's Cloak), "The Gordok Ogre
+        // Suit" (Bolt of Runecloth, Rugged Leather), "Additional Materials" (Heavy Knothide Leather), "They Grow
+        // Up So Fast" (Rugged Leather)
+        565, 5518, 10664, 13906,
+        // "Desert Survival Kits": Powerful Anti-Venom from First Aid and Smoked Desert Dumplings from Cooking
+        8804,
     ];
 
     // Quests no player can get, or only during a window that never comes back.

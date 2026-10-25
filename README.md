@@ -121,7 +121,7 @@ on any character the run allows. Quests are dropped when they are:
 - part of a positive `ExclusiveGroup`, where completing one quest locks the others out — any of them
   could have been a location the player needed
 - one of a few hardcoded sets: collector's edition rewards, the reputation cloth donation turn-ins, the
-  riding-skill quests, quests whose giver only a profession brings out, quests asking for an item only a
+  riding-skill quests, quests whose giver only a profession brings out, quests asking for an item a
   profession makes, such as Lotwil Veriatus's Frost Oil, quests no player can get (or
   only during a window that never comes back), failsafe quests that only give back what a player
   lost or missed earlier in a chain, such as "Replacement Phial", quests started by an item that
