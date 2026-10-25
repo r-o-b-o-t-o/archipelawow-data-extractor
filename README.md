@@ -415,16 +415,19 @@ The few names `DungeonEncounter.dbc` misspells, such as "Salram the Fleshcrafter
 
 A few bosses have no encounter in `DungeonEncounter.dbc` at all, so the core never credits them. They are
 listed by hand (`SYNTHETIC_ENCOUNTERS`) under a made-up id past every DBC id, which the server module
-credits itself. There are two:
+credits itself. There are three:
 
 - Sergeant Bly (`100000`), credited when Bly dies. Once the Zul'Farrak pyramid event is over, his crew
   turns on the party when a player tells him to; left alone, they teleport out about two and a half
   minutes after the last troll falls.
 - The Obsidian Sentinel (`100001`) in Uldaman, credited when the Sentinel dies.
+- The Atal'ai Defenders (`100002`) in the Sunken Temple: Zolo, Gasher, Loro, Hukku, Zul'Lor and Mijan, the
+  six trolls on the balconies whose deaths open the forcefield before Jammal'an the Prophet. Credited when
+  the last of them dies, which the core's instance script counts.
 
 Each is placed among its dungeon's encounters by an `OrderIndex` of its own: Sergeant Bly's between
 Shadowpriest Sezz'ziz and Chief Ukorz Sandscalp, the Obsidian Sentinel's between Ironaya and the Ancient
-Stone Keeper.
+Stone Keeper, the Atal'ai Defenders' right before Jammal'an.
 
 ### Output
 

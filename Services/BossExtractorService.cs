@@ -92,6 +92,9 @@ public class BossExtractorService(
         // Obsidian Sentinel: between Ironaya and the Ancient Stone Keeper in Uldaman. The module credits it
         // when the Sentinel (7023) dies.
         (100001, "Obsidian Sentinel", 70, 3000),
+        // Atal'ai Defenders: the six trolls on the Sunken Temple's balconies, whose deaths open the forcefield
+        // before Jammal'an the Prophet, so right before him. The module credits it when the last of them dies.
+        (100002, "Atal'ai Defenders", 109, 250),
     ];
 
     // Names DungeonEncounter.dbc misspells, by encounter id
