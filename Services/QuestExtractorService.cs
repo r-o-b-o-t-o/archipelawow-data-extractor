@@ -424,6 +424,8 @@ public class QuestExtractorService(
         13372, 13375,
         // "A Most Puzzling Circumstance": Head of Onyxia
         24428, 24429,
+        // "The Lord of Blackrock": Head of Nefarian, from Blackwing Lair
+        7781, 7783,
     ];
 
     // Endgame chains that take hours of farming and dungeon runs. Each covers every class and faction version.
