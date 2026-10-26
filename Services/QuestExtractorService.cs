@@ -357,8 +357,8 @@ public class QuestExtractorService(
         1103,
     ];
 
-    // Quests started by an item that only drops rarely off world creatures, which would leave the player
-    // farming for hours.
+    // Quests started by an item that only drops rarely, off world or dungeon creatures or from a container,
+    // which would leave the player farming for hours.
     private static readonly HashSet<uint> RARE_WORLD_DROP_QUESTS = [
         // "Crystal in the Mountains": Pendant of Myzrael
         635,
@@ -366,6 +366,50 @@ public class QuestExtractorService(
         351, 485, 2766,
         // "Captain Sanders' Hidden Treasure": Captain Sanders' Treasure Map, a 1% drop in Westfall
         136,
+        // "Furlbrow's Deed": Westfall Deed, a 3% drop in Elwynn Forest
+        184,
+        // "The Powers Below": Book: The Powers Below, a 5% drop in Darkshore
+        968,
+        // "Theocritus' Retrieval": Glowing Shadowhide Pendant, a 3% drop in Redridge Mountains
+        178,
+        // "An Old History Book": a 1% drop in Duskwood
+        337,
+        // "A Letter Undelivered": A Letter to Yvette, a 3-4% drop in Tirisfal Glades
+        361,
+        // "The Corrupter": Flayed Demon Skin, a 2% drop in Desolace
+        1480,
+        // "The Shattered Necklace": a 6% drop in Uldaman
+        2198,
+        // "Ship Schedules": Ship Schedule, a 15% roll from a Pirate's Footlocker, itself a 4-7% drop in Tanaris
+        2876,
+        // "Grime-Encrusted Ring": an 8% drop in Gnomeregan
+        2945,
+        // "Williden's Journal": A Mangled Journal, a 3-4% drop in Un'Goro Crater
+        3884,
+        // "The Key to Freedom": Grimesilt Outhouse Key, a 3% drop in Searing Gorge
+        4451,
+        // "A Strange Red Key": Blood Red Key, a 6% drop in Felwood
+        5202,
+        // The Dire Maul class books: a 10% drop off Guard Slip'kik, otherwise a 1-4% roll from A Dusty Tome
+        7498, 7499, 7500, 7501, 7502, 7503, 7504, 7505, 7506,
+        // "Brann Bronzebeard's Lost Letter": a 3% drop in Silithus
+        8308,
+        // "The Lady's Necklace": a 5% drop in Ghostlands
+        9175,
+        // "Missing Missive": Eroded Leather Case, a 5-7% drop in Hellfire Peninsula
+        9373,
+        // "Rune Covered Tablet": a 5% drop on Azuremyst Isle
+        9514,
+        // "Diabolical Plans": an 8% drop in Ashenvale
+        9520, 9535,
+        // "Orders from Lady Vashj": a 2% drop in The Steamvault
+        9764,
+        // "Withered Basidium": a 2% drop in Zangarmarsh
+        9827, 9828,
+        // "Waterlogged Recipe": a 2% roll from the Bag of Fishing Treasures of the Dalaran fishing dailies
+        24431,
+        // "Battle Plans Of The Kvaldir": Kvaldir Attack Plans, a 5% drop on Hrothgar's Landing
+        24442,
     ];
 
     // Quests started by an item that only drops off a raid boss.
