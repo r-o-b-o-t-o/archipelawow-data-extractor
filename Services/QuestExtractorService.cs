@@ -410,6 +410,9 @@ public class QuestExtractorService(
         24431,
         // "Battle Plans Of The Kvaldir": Kvaldir Attack Plans, a 5% drop on Hrothgar's Landing
         24442,
+        // "Twilight Battle Orders", "Earthen Templar", "The Ultimate Deception": a 20% roll from a Silithus task
+        // briefing bag
+        8498, 8536, 8829,
     ];
 
     // Quests started by an item that only drops off a raid boss.
