@@ -618,6 +618,11 @@ archipelawow raises the quest's level: the highest of `requiresAll`, and the low
 
 `dungeons.json` places each dungeon at the area triggers leading inside, or at its `Map.dbc` corpse
 position for the ones with no trigger on a continent, and lists the encounters of `bosses.json` in it.
+The tracker shows a dungeon at its first entrance. A few dungeons' triggers mislead, and their main door
+is placed by hand instead, as their only entrance (`ENTRANCES` in `TrackerExtractorService`): the ones
+deep inside a cave or a mountain, far from the door or under another zone, such as Blackrock Depths' or
+Uldaman's, Razorfen Downs', which lies closer to Dustwallow Marsh's spawns than to the Barrens', and the
+ones whose first trigger isn't the main door, such as Stratholme's service entrance.
 `minLevel` is the level the Dungeon Finder lets a character in from: the `MinLevel` of its normal
 `LFGDungeons.dbc` entry rather than the level its entrance asks for, or the lowest of its wings' for a
 dungeon split into wings. The seasonal bosses' entries are left out, and a dungeon the Dungeon Finder

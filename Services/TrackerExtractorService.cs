@@ -151,6 +151,38 @@ public partial class TrackerExtractorService(
         ["flightmaster"] = "Interface/Minimap/Tracking/FlightMaster",
     };
 
+    /// <summary>
+    /// Where to show the dungeons whose area triggers mislead, by Map.dbc id: the spot of the door players expect on its
+    /// zone's map. A trigger deep inside a cave or a mountain sits far from the door, or under another zone, one by a
+    /// zone's border can take the zone across it, and the first of a few isn't the main door.
+    /// </summary>
+    private static readonly Dictionary<int, MapPosition> ENTRANCES = new()
+    {
+        // The Deadmines: the Moonbrook mine, in Westfall
+        [36] = new(39, 0.425f, 0.717f),
+        // Uldaman: its front door, in the Badlands, whose trigger lies under Loch Modan
+        [70] = new(17, 0.444f, 0.12f),
+        // Gnomeregan: its gate, in Dun Morogh
+        [90] = new(27, 0.244f, 0.398f),
+        // The Temple of Atal'Hakkar, in the Swamp of Sorrows
+        [109] = new(38, 0.697f, 0.535f),
+        // Razorfen Downs, in the Barrens, closer to Dustwallow Marsh's spawns
+        [129] = new(11, 0.5091f, 0.9288f),
+        // Blackrock Spire and Blackrock Depths: Blackrock Mountain's gate in the Burning Steppes, the one most players take
+        [229] = new(29, 0.296f, 0.374f),
+        [230] = new(29, 0.296f, 0.374f),
+        // The Caverns of Time's: the caverns' mouth, in Tanaris
+        [269] = new(161, 0.65f, 0.495f),
+        [560] = new(161, 0.65f, 0.495f),
+        [595] = new(161, 0.65f, 0.495f),
+        // Stratholme: its meeting stone, by the main gate rather than the service entrance, in the Eastern Plaguelands
+        [329] = new(23, 0.2709f, 0.1234f),
+        // Maraudon: the cave in the Valley of Spears, in Desolace
+        [349] = new(101, 0.29f, 0.625f),
+        // Dire Maul: before its gate, rather than the wings' portals, in Feralas
+        [429] = new(121, 0.591f, 0.4496f),
+    };
+
     private sealed record Spawn(int Map, int Zone, int Area, float X, float Y);
 
     /// <summary>A spawn on a continent, and the map of the zone or city it stands in.</summary>
@@ -239,7 +271,7 @@ public partial class TrackerExtractorService(
         var firstEntrances = new Dictionary<int, MapPosition>();
         foreach (var map in maps.Where(m => m.InstanceType == MAP_INSTANCE))
         {
-            List<MapPosition> entrances = [.. teleports
+            List<MapPosition> entrances = ENTRANCES.TryGetValue(map.ID, out var door) ? [door] : [.. teleports
                 .Where(t => t.TargetMap == map.ID)
                 .Select(t => areaTriggers.Get((int)t.Id))
                 .Where(trigger => trigger != null && WorldMapGeometry.CONTINENT_MAPS.Contains(trigger.ContinentID))
