@@ -289,6 +289,13 @@ public class QuestExtractorService(
         5047,
     ];
 
+    // Quests that take a class skill far above what the character has by then, which it may not be able to train.
+    private static readonly HashSet<uint> CLASS_SKILL_QUESTS = [
+        // "Klaven's Tower": the Duskwood Chest takes 70 Lockpicking, and the locks to train it on may be in zones the
+        // run has not opened yet. "The Touch of Zanzil" follows it, so it goes with it.
+        2359,
+    ];
+
     // Quests that ask for an item a profession makes, which the quest itself does not require. Some of these items
     // can also be bought or looted; those quests are left out on purpose all the same.
     private static readonly HashSet<uint> CRAFTED_ITEM_QUESTS = [
@@ -532,6 +539,7 @@ public class QuestExtractorService(
             .Where(q => FilterQuest(q, "reputation requirement", FilterReputation))
             .Where(q => FilterQuest(q, "profession requirement", FilterProfession))
             .Where(q => FilterQuest(q, "crafted item", FilterCraftedItem))
+            .Where(q => FilterQuest(q, "class skill", FilterClassSkill))
             .Where(q => FilterQuest(q, "exclusive group", FilterExclusiveGroups))
             .Where(q => FilterQuest(q, "collector's edition", FilterCollectorsEdition))
             .Where(q => FilterQuest(q, "cloth donation", FilterClothDonation))
@@ -876,6 +884,11 @@ public class QuestExtractorService(
     private bool FilterCraftedItem(ExtractedQuestData q)
     {
         return !CRAFTED_ITEM_QUESTS.Contains(q.Id);
+    }
+
+    private bool FilterClassSkill(ExtractedQuestData q)
+    {
+        return !CLASS_SKILL_QUESTS.Contains(q.Id);
     }
 
     private bool FilterDeprecatedName(ExtractedQuestData q)
