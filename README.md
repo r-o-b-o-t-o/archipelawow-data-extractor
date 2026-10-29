@@ -165,6 +165,7 @@ substitute for the flag.
   "isDungeon": false,
   "requiresAny": [],
   "requiresAll": [],
+  "requiredSpells": [],
   "startZones": [{ "id": 12, "name": "Elwynn Forest" }],
   "endZones": [{ "id": 12, "name": "Elwynn Forest" }],
   "objectiveZones": [{ "id": 12, "name": "Elwynn Forest" }]
@@ -203,6 +204,11 @@ it is turned in. Breadcrumbs are the exception: the core remembers their target 
 
 A quest that can only be reached through a missable one is lost along with it, so it is marked too: "The
 Engraved Ring" and the two quests after it only open through "Rot Hide Clues".
+
+`requiredSpells` lists the class abilities a quest takes, by spell id, such as Pick Lock (1804) for the
+locked chest of "Alther's Mill". Nothing in the quest data says so, so they are set by hand
+(`QUEST_REQUIRED_SPELLS` in `QuestExtractorService`). Only the quest's own are listed: a quest following
+one that takes an ability does not repeat it.
 
 #### Prerequisites
 
@@ -608,6 +614,9 @@ map as `map`, when it has one. `doableLevel` is the level the quest can be done 
 the quest log shows it orange from, four under its `QuestLevel` and never under its `minLevel`, or its
 `minLevel` when its level follows the player's. It is raised to that of its prerequisites the way
 archipelawow raises the quest's level: the highest of `requiresAll`, and the lowest of `requiresAny`.
+`requiredSpells` lists the abilities the quest and the quests before it take, resolved like
+`doableLevel`: all of those of `requiresAll`, and those every one of `requiresAny` takes. It is left out
+when empty; its ids are those of `spells.json`.
 
 ```json
 {

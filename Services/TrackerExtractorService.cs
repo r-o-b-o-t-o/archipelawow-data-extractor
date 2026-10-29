@@ -343,6 +343,8 @@ public partial class TrackerExtractorService(
             q => (uint)q["id"].GetValue<int>(),
             q => (All: Ids(q["requiresAll"]), Any: Ids(q["requiresAny"])));
         var doableLevels = new Dictionary<uint, int>();
+        var ownSpells = quests.ToDictionary(q => (uint)q["id"].GetValue<int>(), q => Ids(q["requiredSpells"]));
+        var requiredSpellsById = new Dictionary<uint, List<uint>>();
 
         var mapsByArea = geometry.Zones.ToDictionary(area => area.AreaID, area => area.ID);
 
@@ -352,6 +354,8 @@ public partial class TrackerExtractorService(
         {
             uint id = (uint)quest["id"].GetValue<int>();
             int doableLevel = DoableLevel(id, []);
+            var spells = RequiredSpells(id, []);
+            var requiredSpells = spells.Count > 0 ? spells : null;
             var givers = Spots(creatureStarters[id], gameObjectStarters[id]);
             bool atEnder = givers.Count == 0;
             if (atEnder)
@@ -361,14 +365,14 @@ public partial class TrackerExtractorService(
 
             if (givers.Count > 0)
             {
-                result[(int)id] = new { Givers = givers, AtEnder = atEnder ? true : (bool?)null, DoableLevel = doableLevel };
+                result[(int)id] = new { Givers = givers, AtEnder = atEnder ? true : (bool?)null, DoableLevel = doableLevel, RequiredSpells = requiredSpells };
                 continue;
             }
 
             // Left to the zone the quest log files it under, if it has a map
             unplaced++;
             int? zoneMap = quest["questSortArea"]?["id"]?.GetValue<int>() is int zone && mapsByArea.TryGetValue(zone, out int mapId) ? mapId : null;
-            result[(int)id] = new { Map = zoneMap, DoableLevel = doableLevel };
+            result[(int)id] = new { Map = zoneMap, DoableLevel = doableLevel, RequiredSpells = requiredSpells };
         }
 
         Write(outDir, "quests.json", result);
@@ -395,6 +399,33 @@ public partial class TrackerExtractorService(
             level = Math.Max(level, any.Select(p => DoableLevel(p, chain)).DefaultIfEmpty(0).Min());
             chain.Remove(id);
             return doableLevels[id] = level;
+        }
+
+        // The abilities a quest takes, its own and those of the quests before it, as archipelawow asks for them: all of
+        // those of the prerequisites that are all needed, and of those of which one is enough, the ones they all take
+        List<uint> RequiredSpells(uint id, HashSet<uint> chain)
+        {
+            if (requiredSpellsById.TryGetValue(id, out var cached))
+            {
+                return cached;
+            }
+
+            if (!chain.Add(id))
+            {
+                return [];
+            }
+
+            var (all, any) = prerequisites.GetValueOrDefault(id, ([], []));
+            var shared = any.Count > 0
+                ? any.Select(p => RequiredSpells(p, chain)).Aggregate((a, b) => [.. a.Intersect(b)])
+                : [];
+            var spells = ownSpells.GetValueOrDefault(id, [])
+                .Concat(all.SelectMany(p => RequiredSpells(p, chain)))
+                .Concat(shared)
+                .Distinct()
+                .ToList();
+            chain.Remove(id);
+            return requiredSpellsById[id] = spells;
         }
 
         List<object[]> Spots(IEnumerable<uint> creatures, IEnumerable<uint> gameObjects)

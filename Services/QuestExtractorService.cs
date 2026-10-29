@@ -42,6 +42,12 @@ public class ExtractedQuestData
     public bool IsDungeon { get; set; }
     public List<uint> RequiresAny { get; set; } = [];
     public List<uint> RequiresAll { get; set; } = [];
+
+    /// <summary>
+    /// The class abilities the quest takes, by spell id. Only the quest's own: those of its prerequisites are not
+    /// repeated here.
+    /// </summary>
+    public List<uint> RequiredSpells { get; set; } = [];
     public List<ExtractedArea> StartZones { get; set; } = [];
     public List<ExtractedArea> EndZones { get; set; } = [];
     public List<ExtractedArea> ObjectiveZones { get; set; } = [];
@@ -197,6 +203,10 @@ public class QuestExtractorService(
 
     private const int MAX_CHARACTER_LEVEL = 80;
 
+    private const uint SPELL_PICK_POCKET = 921;
+    private const uint SPELL_STEALTH = 1784;
+    private const uint SPELL_PICK_LOCK = 1804;
+
     /// <summary>
     /// Below this share of quest givers resolving a zone, the spawn table is assumed to be missing its
     /// denormalised zone data rather than merely holding a few odd rows.
@@ -288,6 +298,18 @@ public class QuestExtractorService(
         // takes 310 Skinning
         5047,
     ];
+
+    // Quests that take class abilities, which nothing in the quest data says: they are only needed to get at what the
+    // quest asks for.
+    private static readonly Dictionary<uint, uint[]> QUEST_REQUIRED_SPELLS = new()
+    {
+        // "Tools of the Trade": the Dalaran Status Report is in the locked Ambermill Strongbox
+        [1999] = [SPELL_PICK_LOCK],
+        // "Alther's Mill": the Token of Thievery is in the locked Lucius's Lockbox
+        [2282] = [SPELL_PICK_LOCK],
+        // "Sealed Azure Bag": the bag is only pickpocketed off the Timbermaw Shamans
+        [8234] = [SPELL_STEALTH, SPELL_PICK_POCKET],
+    };
 
     // Quests that take a class skill far above what the character has by then, which it may not be able to train.
     private static readonly HashSet<uint> CLASS_SKILL_QUESTS = [
@@ -598,6 +620,7 @@ public class QuestExtractorService(
             SpecialFlags = q.QuestTemplateAddon?.SpecialFlags,
             IsDungeon = questInfo?.ID == QUEST_INFO_DUNGEON,
             RequiresAny = (q.QuestTemplateAddon?.PrevQuestId ?? 0) == 0 ? [] : [(uint)Math.Abs(q.QuestTemplateAddon.PrevQuestId)],
+            RequiredSpells = QUEST_REQUIRED_SPELLS.TryGetValue(q.Id, out var spells) ? [.. spells] : [],
             QuestTemplate = q,
         };
     }
