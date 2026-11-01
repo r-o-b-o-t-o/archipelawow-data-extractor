@@ -183,6 +183,16 @@ public partial class TrackerExtractorService(
         [429] = new(121, 0.591f, 0.4496f),
     };
 
+    /// <summary>
+    /// Where to show the subzones whose explored area's middle sits off the spot players know, by Achievement_Criteria.dbc
+    /// id, from the zone coordinates `.gps` reads there.
+    /// </summary>
+    private static readonly Dictionary<int, MapPosition> EXPLORATION_SPOTS = new()
+    {
+        // Valaar's Berth: its dock, in Azuremyst Isle
+        [1567] = new(464, 0.2253f, 0.5389f),
+    };
+
     private sealed record Spawn(int Map, int Zone, int Area, float X, float Y);
 
     /// <summary>A spawn on a continent, and the map of the zone or city it stands in.</summary>
@@ -585,7 +595,7 @@ public partial class TrackerExtractorService(
         foreach (int id in ReadIds(dataDir, "explorations.json"))
         {
             var criteria = achievementCriteria.Get(id);
-            if (mapExtractor.ExploredAreaPosition(overlays.Get(criteria.AssetID)) is not { } position)
+            if ((EXPLORATION_SPOTS.TryGetValue(id, out var spot) ? spot : mapExtractor.ExploredAreaPosition(overlays.Get(criteria.AssetID))) is not { } position)
             {
                 logger.LogWarning("Found no spot for the subzone {id}.", id);
                 continue;

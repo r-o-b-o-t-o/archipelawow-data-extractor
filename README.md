@@ -641,7 +641,9 @@ doesn't list has none.
 `explorations.json` places each subzone on its zone's map, in the middle of the `WorldMapOverlay.dbc`
 explored area its criterion names: the centroid of the area's shape, or the point of the shape closest
 to it when the shape bends around it. The few explored areas with no texture are placed in the middle of
-the hit rectangle `WorldMapOverlay.dbc` gives them instead.
+the hit rectangle `WorldMapOverlay.dbc` gives them instead. The subzones whose middle sits off the spot
+players know are placed by hand (`EXPLORATION_SPOTS` in `TrackerExtractorService`), such as Valaar's Berth
+on its dock.
 
 ```json
 {
