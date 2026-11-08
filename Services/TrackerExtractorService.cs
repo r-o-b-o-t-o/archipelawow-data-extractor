@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using ArchipelaWoW.DataExtractor.Dbc;
 using ArchipelaWoW.DataExtractor.Entities;
 using ArchipelaWoW.DataExtractor.Extensions;
+using ArchipelaWoW.DataExtractor.Services.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
@@ -21,6 +22,8 @@ namespace ArchipelaWoW.DataExtractor.Services;
 public partial class TrackerExtractorService(
         ILogger<TrackerExtractorService> logger,
         WorldDbContext db,
+        TrainerRepository trainersRepo,
+        TrainerRaces trainerRaces,
         ClientTextures client,
         TrackerMapExtractorService mapExtractor,
         WorldMapGeometry geometry,
@@ -218,7 +221,7 @@ public partial class TrackerExtractorService(
         await ExtractQuests(outDir, dataDir, entrances, spawns);
         await ExtractFlightPaths(outDir, spawns);
         await ExtractLeaders(outDir, dataDir, spawns, icons);
-        ExtractSpells(outDir, dataDir, icons);
+        await ExtractSpells(outDir, dataDir, spawns, icons);
         ExtractSkills(outDir, dataDir, icons);
         ExtractExplorations(outDir, dataDir, icons);
         await ExtractAchievements(outDir, icons);
@@ -556,20 +559,62 @@ public partial class TrackerExtractorService(
         logger.LogInformation("Wrote {count} faction leaders.", result.Count);
     }
 
-    private void ExtractSpells(string outDir, string dataDir, HashSet<string> icons)
+    /// <summary>
+    /// The icons of the spells of spells.json, and for those weapon masters and mount trainers sell, where those
+    /// trainers stand: the spells with trainer zones there, whose checks ask for one of those zones.
+    /// </summary>
+    private async Task ExtractSpells(string outDir, string dataDir, ILookup<int, PlacedSpawn> spawns, HashSet<string> icons)
     {
+        var sellers = (await trainersRepo.GetTrainersWithSpells())
+            .Where(trainer => trainer.Type is SpellExtractorService.TRAINER_TYPE_MOUNT or SpellExtractorService.TRAINER_TYPE_TRADESKILL)
+            .SelectMany(trainer => trainer.Spells.Select(spell => (Spell: (int)spell.SpellId, Trainer: trainer.Id)))
+            .ToLookup(entry => entry.Spell, entry => entry.Trainer);
+        var trainerSpawns = (await trainerRaces.GetTeachingSpawns())
+            .Where(entry => WorldMapGeometry.CONTINENT_MAPS.Contains(entry.Spawn.Map))
+            .ToLookup(entry => entry.Spawn.TrainerId);
+
         var result = new SortedDictionary<int, object>();
+        int placed = 0;
         foreach (var spell in ReadArray(dataDir, "spells.json"))
         {
             int id = spell["id"].GetValue<int>();
-            if (Icon(spellIcons.Get(spells.Get(id)?.SpellIconID ?? 0)?.TextureFilename, icons) is { } icon)
+            string icon = Icon(spellIcons.Get(spells.Get(id)?.SpellIconID ?? 0)?.TextureFilename, icons);
+            var trainers = Trainers(id);
+            if (icon != null || trainers.Count > 0)
             {
-                result[id] = new { Icon = icon };
+                result[id] = new { Icon = icon, Trainers = trainers.Count > 0 ? trainers : null };
             }
+            placed += trainers.Count;
         }
 
         Write(outDir, "spells.json", result);
-        logger.LogInformation("Wrote the icons of {count} spells.", result.Count);
+        logger.LogInformation("Wrote the icons of {count} spells, and {placed} trainer spots.", result.Count, placed);
+
+        // The spawns of the trainers selling a spell, one per spot and zone, with the races they teach, left out for
+        // every race. Empty for the spells class trainers teach.
+        List<object> Trainers(int spellId) => [.. sellers[spellId]
+            .SelectMany(trainer => trainerSpawns[trainer])
+            .Select(entry =>
+            {
+                var spawn = new Spawn(entry.Spawn.Map, entry.Spawn.ZoneId, entry.Spawn.AreaId, entry.Spawn.X, entry.Spawn.Y);
+                return (Position: LocateSpawn(spawn) ?? LocateNear(spawns, spawn.Map, spawn.X, spawn.Y), entry.Spawn.ZoneId, entry.Races);
+            })
+            .Where(entry => entry.Position != null)
+            .GroupBy(entry => (entry.Position.Value.Area, X: MathF.Round(entry.Position.Value.X, 3), Y: MathF.Round(entry.Position.Value.Y, 3), entry.ZoneId))
+            .OrderBy(group => group.Key.ZoneId)
+            .ThenBy(group => group.Key.Area)
+            .ThenBy(group => group.Key.X)
+            .ThenBy(group => group.Key.Y)
+            .Select(group =>
+            {
+                int races = group.Aggregate(0, (mask, entry) => mask | entry.Races);
+                return (object)new
+                {
+                    Position = group.First().Position.Value.ToJson(),
+                    Zone = group.Key.ZoneId,
+                    Races = races == CharacterSkills.PLAYABLE_RACES_MASK ? (int?)null : races,
+                };
+            })];
     }
 
     /// <summary>The skills of skills.json, with the icon of the weapon proficiency that teaches them.</summary>

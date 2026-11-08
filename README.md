@@ -588,7 +588,7 @@ Everything goes to `TRACKER_OUT_DIR`, images as WebP:
 | `leaders.json`     | Where the faction leaders stand, and the icon of the achievement for killing them, by creature entry |
 | `dungeons.json`    | The 5-player dungeons' entrances, encounters and Dungeon Finder level, by `Map.dbc` id    |
 | `explorations.json` | Where each subzone is, and its achievement's icon, by `Achievement_Criteria.dbc` id      |
-| `spells.json`      | The spells' icons                                                                         |
+| `spells.json`      | The spells' icons, and where the weapon masters and mount trainers selling them stand      |
 | `skills.json`      | The skills' names and icons, by `SkillLine.dbc` id                                        |
 | `achievements.json`, `items.json` | Icons, and an achievement's name and dungeon                               |
 | `icons/`           | Every icon those name, as `<lowercase name>.webp`                                         |
@@ -648,6 +648,20 @@ on its dock.
 ```json
 {
   "1149": { "position": [30, 0.251, 0.2822], "icon": "achievement_zone_elwynnforest" }
+}
+```
+
+`spells.json` is keyed by spell id. The spells of `OUT_DIR`'s `spells.json` with `trainerZones`, the ones
+weapon masters and mount trainers sell, list in `trainers` the spawns on a continent of the trainers selling
+them, one per spot: `zone` is the `AreaTable.dbc` zone of the spawn, as in `trainerZones`, and `races` the
+races it teaches, read the same way, left out for every race.
+
+```json
+{
+  "264": {
+    "icon": "inv_weapon_bow_05",
+    "trainers": [{ "position": [321, 0.8153, 0.1963], "zone": 1637, "races": 690 }]
+  }
 }
 ```
 

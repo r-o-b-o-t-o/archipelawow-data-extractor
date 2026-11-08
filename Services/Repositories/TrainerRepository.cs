@@ -16,13 +16,17 @@ public class TrainerCreature
 }
 
 /// <summary>
-/// One zone a creature acting as a given trainer is spawned in, with what decides who it will train: its
-/// faction, and the gossip menu whose conditions can hide the trainer option from some races.
+/// One spawn of a creature acting as a given trainer, with what decides who it will train: its faction, and
+/// the gossip menu whose conditions can hide the trainer option from some races.
 /// </summary>
 public class TrainerSpawn
 {
     public uint TrainerId { get; set; }
+    public int Map { get; set; }
     public int ZoneId { get; set; }
+    public int AreaId { get; set; }
+    public float X { get; set; }
+    public float Y { get; set; }
     public ushort Faction { get; set; }
     public uint GossipMenuId { get; set; }
 }
@@ -79,8 +83,8 @@ public class TrainerRepository(WorldDbContext db)
     }
 
     /// <summary>
-    /// Every zone a creature offering a trainer is spawned in. Reads the denormalised <c>zoneId</c> spawn
-    /// column, which stays at 0 until worldserver has populated it (see the README).
+    /// Every spawn of a creature offering a trainer. Reads the denormalised <c>zoneId</c> spawn column, and
+    /// leaves out the spawns where it is still 0, as it stays until worldserver has populated it (see the README).
     /// </summary>
     public async Task<List<TrainerSpawn>> GetTrainerSpawns()
     {
@@ -89,15 +93,28 @@ public class TrainerRepository(WorldDbContext db)
             .Join(db.CreatureTemplates, trainer => trainer.CreatureId, template => template.Entry,
                   (trainer, template) => new { trainer.TrainerId, trainer.CreatureId, template.Faction, template.GossipMenuId })
             .Join(db.Creatures, trainer => trainer.CreatureId, creature => creature.Id,
-                  (trainer, creature) => new { trainer.TrainerId, trainer.Faction, trainer.GossipMenuId, creature.ZoneId })
+                  (trainer, creature) => new
+                  {
+                      trainer.TrainerId,
+                      trainer.Faction,
+                      trainer.GossipMenuId,
+                      creature.Map,
+                      creature.ZoneId,
+                      creature.AreaId,
+                      creature.PositionX,
+                      creature.PositionY,
+                  })
             .Where(spawn => spawn.ZoneId != 0)
-            .Distinct()
             .ToListAsync();
 
         return [.. spawns.Select(spawn => new TrainerSpawn
         {
             TrainerId = spawn.TrainerId,
+            Map = spawn.Map,
             ZoneId = spawn.ZoneId,
+            AreaId = spawn.AreaId,
+            X = spawn.PositionX,
+            Y = spawn.PositionY,
             Faction = spawn.Faction,
             GossipMenuId = spawn.GossipMenuId,
         })];

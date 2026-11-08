@@ -74,6 +74,7 @@ public static class Program
             .AddWorldDbContext()
             .AddRepositories()
             .AddSingleton<CharacterSkills>()
+            .AddScoped<TrainerRaces>()
             .AddTransient<QuestExtractorService>()
             .AddTransient<SpellExtractorService>()
             .AddTransient<SkillExtractorService>()

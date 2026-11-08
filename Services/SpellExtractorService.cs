@@ -70,12 +70,12 @@ public class ExtractedSpellData
 public class SpellExtractorService(
         ILogger<SpellExtractorService> logger,
         TrainerRepository trainersRepo,
+        TrainerRaces trainerRaces,
         SpellContainer spells,
         SkillLineContainer skillLines,
         SkillLineAbilityContainer skillLineAbilities,
         CharacterSkills characterSkills,
-        FactionTemplateContainer factionTemplates,
-        ChrRacesContainer races
+        FactionTemplateContainer factionTemplates
     )
 {
     private readonly JsonSerializerOptions jsonOptions = new()
@@ -87,8 +87,8 @@ public class SpellExtractorService(
 
     // Trainer.Type in the world database
     private const int TRAINER_TYPE_CLASS = 0;
-    private const int TRAINER_TYPE_MOUNT = 1;
-    private const int TRAINER_TYPE_TRADESKILL = 2;
+    public const int TRAINER_TYPE_MOUNT = 1;
+    public const int TRAINER_TYPE_TRADESKILL = 2;
 
     // SkillLineAbility.AcquireMethod, see DBCEnums.h
     private const int ACQUIRE_ON_SKILL_VALUE = 1;
@@ -298,18 +298,9 @@ public class SpellExtractorService(
     /// </summary>
     private async Task<Dictionary<uint, Dictionary<int, int>>> CollectTrainerZones()
     {
-        var spawns = await trainersRepo.GetTrainerSpawns();
-        var optionRaceMasks = await trainersRepo.GetTrainerOptionRaceMasks();
-
         Dictionary<uint, Dictionary<int, int>> trainerZones = [];
-        foreach (TrainerSpawn spawn in spawns)
+        foreach (var (spawn, raceMask) in await trainerRaces.GetTeachingSpawns())
         {
-            int raceMask = RacesTrainedBy(spawn, optionRaceMasks);
-            if (raceMask == 0)
-            {
-                continue;
-            }
-
             if (!trainerZones.TryGetValue(spawn.TrainerId, out var zones))
             {
                 trainerZones[spawn.TrainerId] = zones = [];
@@ -317,27 +308,6 @@ public class SpellExtractorService(
             zones[spawn.ZoneId] = zones.GetValueOrDefault(spawn.ZoneId) | raceMask;
         }
         return trainerZones;
-    }
-
-    /// <summary>
-    /// The playable races a trainer creature will teach: the ones its trainer option is shown to, less the
-    /// ones its faction is hostile to.
-    /// </summary>
-    private int RacesTrainedBy(TrainerSpawn spawn, Dictionary<uint, int> optionRaceMasks)
-    {
-        int optionRaces = optionRaceMasks.GetValueOrDefault(spawn.GossipMenuId, ALL_RACES_MASK);
-        FactionTemplate trainerFaction = factionTemplates.Get(spawn.Faction);
-
-        int raceMask = 0;
-        foreach (int raceId in PLAYABLE_RACE_IDS.Where(raceId => (optionRaces & RaceBit(raceId)) != 0))
-        {
-            FactionTemplate raceFaction = factionTemplates.Get(races.Get(raceId)?.FactionID ?? 0);
-            if (trainerFaction == null || raceFaction == null || FactionRelations.WillTalkTo(trainerFaction, raceFaction))
-            {
-                raceMask |= RaceBit(raceId);
-            }
-        }
-        return raceMask;
     }
 
     /// <summary>
