@@ -355,6 +355,13 @@ public partial class TrackerExtractorService(
         var prerequisites = quests.ToDictionary(
             q => (uint)q["id"].GetValue<int>(),
             q => (All: Ids(q["requiresAll"]), Any: Ids(q["requiresAny"])));
+        // The tracker shows the quests before a check, but not the breadcrumbs, which only point the way to it
+        var breadcrumbs = (await db.QuestTemplateAddons.Where(a => questIds.Contains(a.Id) && a.BreadcrumbForQuestId != 0)
+            .Select(a => a.Id).ToListAsync()).ToHashSet();
+        var shownPrerequisites = prerequisites.ToDictionary(
+            p => p.Key,
+            p => (All: NullIfEmpty(p.Value.All.Where(id => !breadcrumbs.Contains(id))), Any: NullIfEmpty(p.Value.Any.Where(id => !breadcrumbs.Contains(id)))));
+        var prerequisiteIds = shownPrerequisites.Values.SelectMany(p => (p.All ?? []).Concat(p.Any ?? [])).ToHashSet();
         var doableLevels = new Dictionary<uint, int>();
         var ownSpells = quests.ToDictionary(q => (uint)q["id"].GetValue<int>(), q => Ids(q["requiredSpells"]));
         var requiredSpellsById = new Dictionary<uint, List<uint>>();
@@ -366,9 +373,7 @@ public partial class TrackerExtractorService(
         foreach (var quest in quests)
         {
             uint id = (uint)quest["id"].GetValue<int>();
-            int doableLevel = DoableLevel(id, []);
             var spells = RequiredSpells(id, []);
-            var requiredSpells = spells.Count > 0 ? spells : null;
             var givers = Spots(creatureStarters[id], gameObjectStarters[id]);
             bool atEnder = givers.Count == 0;
             if (atEnder)
@@ -376,22 +381,58 @@ public partial class TrackerExtractorService(
                 givers = Spots(creatureEnders[id], gameObjectEnders[id]);
             }
 
-            if (givers.Count > 0)
+            // Left to the zone the quest log files it under, if it has a map
+            int? zoneMap = null;
+            if (givers.Count == 0)
             {
-                result[(int)id] = new { Givers = givers, AtEnder = atEnder ? true : (bool?)null, DoableLevel = doableLevel, RequiredSpells = requiredSpells };
-                continue;
+                unplaced++;
+                zoneMap = quest["questSortArea"]?["id"]?.GetValue<int>() is int zone && mapsByArea.TryGetValue(zone, out int mapId) ? mapId : null;
             }
 
-            // Left to the zone the quest log files it under, if it has a map
-            unplaced++;
-            int? zoneMap = quest["questSortArea"]?["id"]?.GetValue<int>() is int zone && mapsByArea.TryGetValue(zone, out int mapId) ? mapId : null;
-            result[(int)id] = new { Map = zoneMap, DoableLevel = doableLevel, RequiredSpells = requiredSpells };
+            var (requiresAll, requiresAny) = shownPrerequisites[id];
+            bool isPrerequisite = prerequisiteIds.Contains(id);
+            result[(int)id] = new
+            {
+                Givers = givers.Count > 0 ? givers : null,
+                AtEnder = givers.Count > 0 && atEnder ? true : (bool?)null,
+                Map = zoneMap,
+                DoableLevel = DoableLevel(id, []),
+                RequiredSpells = spells.Count > 0 ? spells : null,
+                RequiresAll = requiresAll,
+                RequiresAny = requiresAny,
+                // What the tracker names a prerequisite the seed doesn't check by, who can take it, and the zones
+                // it needs held to tell whether it can be done
+                Name = isPrerequisite ? quest["displayTitle"].GetValue<string>() : null,
+                Races = isPrerequisite ? Mask(quest["races"]) : null,
+                Classes = isPrerequisite ? Mask(quest["classes"]) : null,
+                Zones = isPrerequisite ? ZoneIds(quest) : null,
+            };
         }
 
         Write(outDir, "quests.json", result);
         logger.LogInformation("Wrote {count} quests, {unplaced} of them without a spot.", result.Count, unplaced);
 
         static List<uint> Ids(JsonNode node) => node?.AsArray().Select(id => (uint)id.GetValue<int>()).ToList() ?? [];
+
+        static List<uint> NullIfEmpty(IEnumerable<uint> ids) => ids.Any() ? [.. ids] : null;
+
+        // A list of DBC ids as a mask, by bit id - 1; null for everyone
+        static int? Mask(JsonNode node) => node?.AsArray().Aggregate(0, (mask, id) => mask | 1 << (id.GetValue<int>() - 1));
+
+        // The zones archipelawow asks for a quest (QuestsContainer.load_quests_json)
+        static List<int> ZoneIds(JsonNode quest)
+        {
+            List<int> ids =
+            [
+                .. new[] { "startZones", "objectiveZones", "endZones" }
+                    .SelectMany(key => quest[key]?.AsArray() ?? new JsonArray())
+                    .Append(quest["questSortArea"])
+                    .Where(zone => zone != null)
+                    .Select(zone => zone["id"].GetValue<int>())
+                    .Distinct(),
+            ];
+            return ids.Count > 0 ? ids : null;
+        }
 
         // A quest can only be taken on once its chain can: like archipelawow's levels, this is the highest level of
         // the prerequisites that are all needed, and of the cheapest of those of which one is enough

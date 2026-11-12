@@ -618,10 +618,26 @@ archipelawow raises the quest's level: the highest of `requiresAll`, and the low
 `doableLevel`: all of those of `requiresAll`, and those every one of `requiresAny` takes. It is left out
 when empty; its ids are those of `spells.json`.
 
+`requiresAll` and `requiresAny` are those of archipelawow's `quests.json`, without the breadcrumbs
+(`BreadcrumbForQuestId`), for the tracker to show the quests leading to a check, and are left out when
+empty. A quest one of them lists also carries what the tracker shows it by when the seed doesn't check
+it: its `displayTitle` as `name`, its `races` and `classes` as masks, bit `id - 1` for each DBC id,
+left out for every race or class, and as `zones` the zones archipelawow asks for the quest, those of
+`startZones`, `objectiveZones`, `endZones` and `questSortArea`.
+
 ```json
 {
-  "2": { "givers": [[43, 0.7378, 0.6146, 2]], "atEnder": true, "doableLevel": 26 },
+  "2": {
+    "givers": [[43, 0.7378, 0.6146, 2]],
+    "atEnder": true,
+    "doableLevel": 26,
+    "requiresAny": [6383],
+    "name": "Sharptalon's Claw",
+    "races": 690,
+    "zones": [331]
+  },
   "7": { "givers": [[30, 0.4892, 0.4161, 1]], "doableLevel": 1 },
+  "247": { "givers": [[43, 0.7378, 0.6146, 2]], "doableLevel": 26, "requiresAll": [2, 23, 24] },
   "9418": { "map": 465, "doableLevel": 60 }
 }
 ```
