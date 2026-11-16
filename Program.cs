@@ -75,6 +75,7 @@ public static class Program
             .AddRepositories()
             .AddSingleton<CharacterSkills>()
             .AddScoped<TrainerRaces>()
+            .AddSingleton<ServerMaps>()
             .AddTransient<QuestExtractorService>()
             .AddTransient<SpellExtractorService>()
             .AddTransient<SkillExtractorService>()

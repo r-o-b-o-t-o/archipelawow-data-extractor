@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using ArchipelaWoW.DataExtractor.Dbc;
 using ArchipelaWoW.DataExtractor.Entities;
 using ArchipelaWoW.DataExtractor.Entities.World;
+using ArchipelaWoW.DataExtractor.Extensions;
 using ArchipelaWoW.DataExtractor.Services.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -108,7 +109,8 @@ public class QuestExtractorService(
         WorldMapAreaContainer worldMapAreas,
         FactionTemplateContainer factionTemplates,
         MapContainer maps,
-        DungeonEncounterContainer encounters
+        DungeonEncounterContainer encounters,
+        ServerMaps serverMaps
     )
 {
     private readonly JsonSerializerOptions jsonOptions = new()
@@ -1631,6 +1633,15 @@ public class QuestExtractorService(
             .ToLookup(spawn => spawn.Id, spawn => spawn.Map);
     }
 
+    /// <summary>
+    /// The zones of the quests' POIs, those of the maps they are drawn on: where a quest is turned in for those of
+    /// objective -1, where its objectives are for the others. The same spot is often drawn on a neighbouring zone's map
+    /// too, such as The Master's Glaive, in Darkshore, on Felwood's: a POI is left out when the server's maps put its
+    /// middle in another zone that the same objective is drawn on the map of, unless they put that other POI's middle in
+    /// this one's zone: two blobs on either side of a border would each be taken for the other's copy. Not whenever they
+    /// put it in another zone, as they only know the ground: a cave or a city can lie under another zone's, such as
+    /// Uldaman's entrance under Loch Modan's, or the Royal Quarter under Silverpine Forest's.
+    /// </summary>
     private async Task FillPOIZones(List<ExtractedQuestData> quests)
     {
         var questIds = quests.Select(q => q.Id).ToHashSet();
@@ -1640,6 +1651,13 @@ public class QuestExtractorService(
             .GroupBy(p => p.QuestId)
             .ToDictionaryAsync(g => g.Key, g => g.ToList());
 
+        var middles = (await db.QuestPoiPoints
+                .Where(p => questIds.Contains(p.QuestId))
+                .Select(p => new { p.QuestId, p.Idx1, p.X, p.Y })
+                .ToListAsync())
+            .GroupBy(p => (p.QuestId, p.Idx1))
+            .ToDictionary(g => g.Key, g => (X: g.Average(p => p.X), Y: g.Average(p => p.Y)));
+
         foreach (var quest in quests)
         {
             if (!poisByQuestId.TryGetValue(quest.Id, out var questPois))
@@ -1647,35 +1665,39 @@ public class QuestExtractorService(
                 continue;
             }
 
-            foreach (var poi in questPois)
+            var drawn = questPois
+                .Select(poi => (Poi: poi, Zone: worldMapAreas.Get((int)poi.WorldMapAreaId) is { } worldMapArea ? areas.Get(worldMapArea.AreaID) : null))
+                .Where(poi => poi.Zone != null)
+                .Select(poi => (poi.Poi, poi.Zone, GroundZoneId: GroundZoneId(poi.Poi, middles)))
+                .ToList();
+
+            foreach (var (poi, mapZone, groundZoneId) in drawn)
             {
-                var worldMapArea = worldMapAreas.Get((int)poi.WorldMapAreaId);
-                if (worldMapArea == null)
+                if (groundZoneId != 0 && groundZoneId != mapZone.ID
+                    && drawn.Any(other => other.Poi.ObjectiveIndex == poi.ObjectiveIndex && other.Zone.ID == groundZoneId && other.GroundZoneId != mapZone.ID))
                 {
                     continue;
                 }
 
-                var area = ExtractedArea.FromAreaTable(areas.Get(worldMapArea.AreaID));
-                if (area == null)
+                var area = ExtractedArea.FromAreaTable(mapZone);
+                var zones = poi.ObjectiveIndex == -1 ? quest.EndZones : quest.ObjectiveZones;
+                if (!zones.Any(a => a.Id == area.Id))
                 {
-                    continue;
-                }
-
-                if (poi.ObjectiveIndex == -1)
-                {
-                    if (!quest.EndZones.Any(a => a.Id == area.Id))
-                    {
-                        quest.EndZones.Add(area);
-                    }
-                }
-                else
-                {
-                    if (!quest.ObjectiveZones.Any(a => a.Id == area.Id))
-                    {
-                        quest.ObjectiveZones.Add(area);
-                    }
+                    zones.Add(area);
                 }
             }
         }
+    }
+
+    /// <summary>The zone the server's maps put the middle of a POI in, 0 when they don't know.</summary>
+    private int GroundZoneId(QuestPoi poi, Dictionary<(uint, uint), (double X, double Y)> middles)
+    {
+        if (!middles.TryGetValue((poi.QuestId, poi.Id), out var middle))
+        {
+            return 0;
+        }
+
+        int areaId = serverMaps.GetAreaId(poi.MapId, middle.X, middle.Y);
+        return areas.Get(areaId) != null ? areas.WithParents(areaId).Last().ID : 0;
     }
 }

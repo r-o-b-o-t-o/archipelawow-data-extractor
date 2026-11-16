@@ -79,6 +79,7 @@ works from both `dotnet run` and Visual Studio.
 | ------------------- | -------- | ---------------- | --------------------------------------------------------------------------------- |
 | `OUT_DIR`           | yes      | —                | Directory the extracts are written to. Point it at ArchipelaWoW's `data`.           |
 | `DBC_DIRECTORY`     | yes      | —                | Directory holding the extracted `.dbc` files.                                       |
+| `MAPS_DIRECTORY`    | yes      | —                | Directory holding the server's extracted `.map` files, AzerothCore's `data/maps`.   |
 | `WORLD_DB_HOST`     | no       | `localhost`      | World database host.                                                                |
 | `WORLD_DB_PORT`     | no       | `3306`           | World database port.                                                                |
 | `WORLD_DB_USER`     | no       | `acore`          | World database user.                                                                |
@@ -186,6 +187,15 @@ group.
 `questSortArea` is the zone the quest log files the quest under. Quests filed under a category
 instead, such as a class, carry it in `questSort`, as in `{ "id": 161, "name": "Mage" }`, where `id` is a
 `QuestSort.dbc` id. At most one of the two is set.
+
+`startZones` and `endZones` are the zones the quest givers spawn in (see [Preparing the world
+database](#preparing-the-world-database)). `endZones` and `objectiveZones` also take the zones of the maps
+the quest's `quest_poi` blobs are drawn on, those of objective -1 and of the others. The same spot is
+often drawn on a neighbouring zone's map too, such as The Master's Glaive, in Darkshore, on Felwood's: a
+blob is left out when the server's maps (`MAPS_DIRECTORY`) put its middle in another zone that the same
+objective is drawn on the map of, unless they put that blob's middle in this one's zone. Not whenever they
+put it in another zone, as they only know the ground: a cave or a city can lie under another zone's, such
+as Uldaman's entrance under Loch Modan's.
 
 `isMissable` marks quests a player can lose for good by getting to another quest first, which makes them
 unreliable locations. The core takes a quest away in three ways, each of which only counts when a
@@ -741,7 +751,7 @@ and Defense, which no weapon master sells, its own from `SKILL_ICONS` in the sam
 
 Everything under [`Entities/`](Entities) is scaffolded from the world database and should not be edited
 by hand; the hand-written navigations and keys live in [`EntityExtensions/`](EntityExtensions) as
-partial classes instead. Only the 30 tables the extractor actually reads are generated. From the Visual
+partial classes instead. Only the 31 tables the extractor actually reads are generated. From the Visual
 Studio Package Manager Console:
 
 ```powershell
@@ -749,7 +759,7 @@ Scaffold-DbContext 'Host=localhost;User=root;Password=root;Database=acore_world'
   -Context WorldDbContext -NoOnConfiguring -DataAnnotations -Force `
   -ContextDir Entities -ContextNamespace ArchipelaWoW.DataExtractor.Entities `
   -OutputDir Entities/World -Namespace ArchipelaWoW.DataExtractor.Entities.World `
-  -Tables quest_template,quest_template_addon,quest_poi,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills,conditions,gossip_menu_option,instance_encounters,areatrigger_teleport,creature_loot_template,gameobject_loot_template,reference_loot_template,npc_vendor,game_event_creature
+  -Tables quest_template,quest_template_addon,quest_poi,quest_poi_points,creature,creature_template,creature_queststarter,creature_questender,gameobject,gameobject_template,gameobject_queststarter,gameobject_questender,item_template,game_event_creature_quest,game_event_gameobject_quest,pool_quest,disables,trainer,trainer_spell,spell_ranks,creature_default_trainer,playercreateinfo_skills,conditions,gossip_menu_option,instance_encounters,areatrigger_teleport,creature_loot_template,gameobject_loot_template,reference_loot_template,npc_vendor,game_event_creature
 ```
 
 Two things to know before running it:

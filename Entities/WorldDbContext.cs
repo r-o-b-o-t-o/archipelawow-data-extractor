@@ -60,6 +60,8 @@ public partial class WorldDbContext : DbContext
 
     public virtual DbSet<QuestPoi> QuestPois { get; set; }
 
+    public virtual DbSet<QuestPoiPoint> QuestPoiPoints { get; set; }
+
     public virtual DbSet<QuestTemplate> QuestTemplates { get; set; }
 
     public virtual DbSet<QuestTemplateAddon> QuestTemplateAddons { get; set; }
@@ -390,6 +392,13 @@ public partial class WorldDbContext : DbContext
             entity.HasKey(e => new { e.QuestId, e.Id })
                 .HasName("PRIMARY")
                 .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0 });
+        });
+
+        modelBuilder.Entity<QuestPoiPoint>(entity =>
+        {
+            entity.HasKey(e => new { e.QuestId, e.Idx1, e.Idx2 })
+                .HasName("PRIMARY")
+                .HasAnnotation("MySql:IndexPrefixLength", new[] { 0, 0, 0 });
         });
 
         modelBuilder.Entity<QuestTemplate>(entity =>
