@@ -355,13 +355,8 @@ public partial class TrackerExtractorService(
         var prerequisites = quests.ToDictionary(
             q => (uint)q["id"].GetValue<int>(),
             q => (All: Ids(q["requiresAll"]), Any: Ids(q["requiresAny"])));
-        // The tracker shows the quests before a check, but not the breadcrumbs, which only point the way to it
-        var breadcrumbs = (await db.QuestTemplateAddons.Where(a => questIds.Contains(a.Id) && a.BreadcrumbForQuestId != 0)
-            .Select(a => a.Id).ToListAsync()).ToHashSet();
-        var shownPrerequisites = prerequisites.ToDictionary(
-            p => p.Key,
-            p => (All: NullIfEmpty(p.Value.All.Where(id => !breadcrumbs.Contains(id))), Any: NullIfEmpty(p.Value.Any.Where(id => !breadcrumbs.Contains(id)))));
-        var prerequisiteIds = shownPrerequisites.Values.SelectMany(p => (p.All ?? []).Concat(p.Any ?? [])).ToHashSet();
+        // Breadcrumbs stay in: a quest only lists one the core requires, such as its target's PrevQuestID
+        var prerequisiteIds = prerequisites.Values.SelectMany(p => p.All.Concat(p.Any)).ToHashSet();
         var doableLevels = new Dictionary<uint, int>();
         var ownSpells = quests.ToDictionary(q => (uint)q["id"].GetValue<int>(), q => Ids(q["requiredSpells"]));
         var requiredSpellsById = new Dictionary<uint, List<uint>>();
@@ -389,7 +384,7 @@ public partial class TrackerExtractorService(
                 zoneMap = quest["questSortArea"]?["id"]?.GetValue<int>() is int zone && mapsByArea.TryGetValue(zone, out int mapId) ? mapId : null;
             }
 
-            var (requiresAll, requiresAny) = shownPrerequisites[id];
+            var (requiresAll, requiresAny) = prerequisites[id];
             bool isPrerequisite = prerequisiteIds.Contains(id);
             result[(int)id] = new
             {
@@ -398,8 +393,8 @@ public partial class TrackerExtractorService(
                 Map = zoneMap,
                 DoableLevel = DoableLevel(id, []),
                 RequiredSpells = spells.Count > 0 ? spells : null,
-                RequiresAll = requiresAll,
-                RequiresAny = requiresAny,
+                RequiresAll = NullIfEmpty(requiresAll),
+                RequiresAny = NullIfEmpty(requiresAny),
                 // What the tracker names a prerequisite the seed doesn't check by, who can take it, and the zones
                 // it needs held to tell whether it can be done
                 Name = isPrerequisite ? quest["displayTitle"].GetValue<string>() : null,

@@ -628,12 +628,13 @@ archipelawow raises the quest's level: the highest of `requiresAll`, and the low
 `doableLevel`: all of those of `requiresAll`, and those every one of `requiresAny` takes. It is left out
 when empty; its ids are those of `spells.json`.
 
-`requiresAll` and `requiresAny` are those of archipelawow's `quests.json`, without the breadcrumbs
-(`BreadcrumbForQuestId`), for the tracker to show the quests leading to a check, and are left out when
-empty. A quest one of them lists also carries what the tracker shows it by when the seed doesn't check
-it: its `displayTitle` as `name`, its `races` and `classes` as masks, bit `id - 1` for each DBC id,
-left out for every race or class, and as `zones` the zones archipelawow asks for the quest, those of
-`startZones`, `objectiveZones`, `endZones` and `questSortArea`.
+`requiresAll` and `requiresAny` are those of archipelawow's `quests.json`, for the tracker to show the
+quests leading to a check, and are left out when empty. They keep the breadcrumbs
+(`BreadcrumbForQuestId`): a quest only lists one the core requires, such as "Kayneth Stillwind", the
+`PrevQuestID` of "Forsaken Diseases". A quest one of them lists also carries what the tracker shows it
+by when the seed doesn't check it: its `displayTitle` as `name`, its `races` and `classes` as masks,
+bit `id - 1` for each DBC id, left out for every race or class, and as `zones` the zones archipelawow
+asks for the quest, those of `startZones`, `objectiveZones`, `endZones` and `questSortArea`.
 
 ```json
 {
